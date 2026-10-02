@@ -468,13 +468,24 @@ router.get("/equipamentos", async (req, res) => {
       SELECT eq.*
       FROM equipamentos eq
       INNER JOIN equipamentoempresas eqe ON eqe.idequip = eq.idequip
-      WHERE eqe.idempresa = $1 AND eq.usointerno = false
+      WHERE eqe.idempresa = $1
       ORDER BY eq.descequip
     `,
       [idempresa]
     );
 
-    res.json(resultado.rows);
+    // "Uso interno" é por modelo (eq.modelos[].usointerno), não mais por categoria --
+    // orçamento só escolhe a categoria (nunca marca/modelo), então só faz sentido
+    // esconder a categoria inteira daqui quando NENHUM modelo dela serve pra evento
+    // (todos marcados uso interno). Categoria sem modelo cadastrado ainda não é
+    // excluída -- ainda não dá pra saber se vai ser só de uso interno ou não.
+    const linhas = resultado.rows.filter((eq) => {
+      const modelos = eq.modelos || [];
+      if (!modelos.length) return true;
+      return !modelos.every((m) => m.usointerno === true);
+    });
+
+    res.json(linhas);
   } catch (error) {
     console.error(error);
     res.status(500).json({ erro: "Erro ao buscar clientes" });

@@ -659,22 +659,34 @@ router.post("/almoxarifado/compras/pedidos",
 // ===== Custódia por funcionário =====
 
 // GET autocomplete de funcionário (mesmo padrão de /ceo/geral/funcionarios, dentro do TI)
+// `?perfil=` explícito troca a lista padrão (Interno/InternoH/ExternoH/Externo, os
+// perfis com custódia normal de equipamento) por um perfil específico só -- usado pela
+// Alocação pra buscar freelancer (perfil='Freelancer', que por padrão fica de fora
+// dessa lista, igual ficava antes de dar pra emprestar equipamento pra eles).
 router.get("/funcionarios/busca", async (req, res) => {
   const idempresa = req.idempresa;
   const busca = (req.query.busca || "").trim();
+  const perfil = (req.query.perfil || "").trim();
 
   if (!busca) return res.json([]);
 
   try {
+    const params = [idempresa, `%${busca}%`];
+    let condicaoPerfil = `fe.perfil IN ('Interno', 'InternoH', 'ExternoH', 'Externo')`;
+    if (perfil) {
+      params.push(perfil);
+      condicaoPerfil = `fe.perfil = $${params.length}`;
+    }
+
     const result = await pool.query(
       `SELECT DISTINCT f.idfuncionario, f.nome
          FROM funcionarios f
          INNER JOIN funcionarioempresas fe ON fe.idfuncionario = f.idfuncionario
          WHERE fe.idempresa = $1 AND fe.ativo = true
-           AND fe.perfil IN ('Interno', 'InternoH', 'ExternoH', 'Externo')
+           AND ${condicaoPerfil}
            AND f.nome ILIKE $2
          ORDER BY f.nome ASC LIMIT 20`,
-      [idempresa, `%${busca}%`]
+      params
     );
     res.json(result.rows);
   } catch (error) {
@@ -748,10 +760,15 @@ router.get("/custodia/funcionarios", async (req, res) => {
 
   try {
     const params = [idempresa];
-    let filtroPerfil = "";
+    // Sem `?perfil=`, fica na lista padrão (perfis com custódia normal de equipamento --
+    // Freelancer fica de fora, igual sempre ficou). Com `?perfil=` explícito (ex: a aba
+    // Freelancers da Alocação pedindo perfil=Freelancer), troca pra esse perfil só, em
+    // vez de só somar condição -- senão perfil=Freelancer nunca bateria (ele não está
+    // na lista padrão) e a busca sempre voltaria vazia.
+    let condicaoPerfil = `fe.perfil IN ('Interno', 'InternoH', 'ExternoH', 'Externo')`;
     if (perfil) {
       params.push(perfil);
-      filtroPerfil = ` AND fe.perfil = $${params.length}`;
+      condicaoPerfil = `fe.perfil = $${params.length}`;
     }
 
     const result = await pool.query(
@@ -774,7 +791,7 @@ router.get("/custodia/funcionarios", async (req, res) => {
          LEFT JOIN equipamentos eq ON eq.idequip = u.idequip
          LEFT JOIN equipamentounidade usub ON usub.idunidade = u.substituida_por_idunidade
          WHERE fe.idempresa = $1 AND fe.ativo = true
-           AND fe.perfil IN ('Interno', 'InternoH', 'ExternoH', 'Externo')${filtroPerfil}
+           AND ${condicaoPerfil}
          GROUP BY f.idfuncionario, f.nome, fe.perfil
          ORDER BY f.nome ASC`,
       params
@@ -1974,14 +1991,22 @@ router.get("/eventos/:idevento/separacao", async (req, res) => {
 
     const orcamentos = Array.from(porOrcamento.entries()).map(([idorcamento, categoriasPorIdequip]) => {
       const categorias = Array.from(categoriasPorIdequip.values()).map((linha) => {
-        // Unidade livre (idorcamento_separacao NULL) elegível pra qualquer orçamento-irmão;
-        // unidade já separada pra OUTRO orçamento-irmão deste mesmo evento fica de fora daqui
-        // -- evita mostrar como "disponível" algo já comprometido em outra fatura.
-        const unidades = (unidadesPorEquip[linha.idequip] || []).filter(
-          (u) => u.idorcamento_separacao === null || u.idorcamento_separacao === idorcamento
-        );
         const modelosPorId = {};
         (linha.modelos || []).forEach((m) => { modelosPorId[m.id] = m; });
+
+        // Unidade livre (idorcamento_separacao NULL) elegível pra qualquer orçamento-irmão;
+        // unidade já separada pra OUTRO orçamento-irmão deste mesmo evento fica de fora daqui
+        // -- evita mostrar como "disponível" algo já comprometido em outra fatura. Modelo
+        // marcado "uso interno" (eq.modelos[].usointerno) nunca entra como opção NOVA pra
+        // separar -- mas se já tiver sido separada pra ESTE evento antes de virar uso
+        // interno, continua aparecendo aqui pra dar pra desfazer pela própria tela.
+        const unidades = (unidadesPorEquip[linha.idequip] || []).filter((u) => {
+          const pertenceAEsteOrcamento = u.idorcamento_separacao === null || u.idorcamento_separacao === idorcamento;
+          if (!pertenceAEsteOrcamento) return false;
+          const usoInterno = modelosPorId[u.idmodelo]?.usointerno === true;
+          if (usoInterno && u.status === 'estoque' && u.idevento_separacao !== Number(idevento)) return false;
+          return true;
+        });
 
         const unidadesPorModelo = {};
         unidades.forEach((u) => {

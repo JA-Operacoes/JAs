@@ -13,6 +13,23 @@ async function fetchTI(caminho, opcoes = {}) {
   return resp;
 }
 
+// Modelos, Complementos, composição de kit e "Uso interno" moraram no cadastro geral
+// de Equipamentos e vieram pro Estoque do TI Mode (único lugar que já tratava o resto
+// do estoque físico). A rota é a mesma do cadastro (`/equipamentos/:id`, NÃO `/ti/...`)
+// -- fetchTI não serve aqui porque ela prefixa "/ti" no caminho. PUT é parcial (ver
+// routes/rotaEquipamento.js): manda só o(s) campo(s) que mudou, o resto fica como está.
+async function salvarCamposEquipamentoTI(idequip, patch) {
+  return fetchComToken(`/equipamentos/${idequip}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+}
+
+function gerarIdLocalTI() {
+  return (window.crypto?.randomUUID?.() ?? `local-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+}
+
 function escaparHtml(texto) {
   const div = document.createElement("div");
   div.textContent = texto ?? "";
@@ -51,7 +68,7 @@ function montarPainelTI() {
       <button type="button" class="ti-aba-btn" data-aba="dashboard"><span class="material-symbols-outlined">dashboard</span>Dashboard</button>
       <button type="button" class="ti-aba-btn" data-aba="eventos"><span class="material-symbols-outlined">event</span>Eventos</button>
       <button type="button" class="ti-aba-btn" data-aba="estoque"><span class="material-symbols-outlined">warehouse</span>Estoque</button>
-      <button type="button" class="ti-aba-btn" data-aba="custodia"><span class="material-symbols-outlined">badge</span>Alocação</button>
+      <button type="button" class="ti-aba-btn" data-aba="custodia"><span class="material-symbols-outlined">badge</span>Distribuição</button>
       <button type="button" class="ti-aba-btn" data-aba="manutencao"><span class="material-symbols-outlined">build</span>Manutenção</button>
       <button type="button" class="ti-aba-btn" data-aba="almoxarifado"><span class="material-symbols-outlined">inventory</span>Almoxarifado</button>
       <button type="button" class="ti-aba-btn" data-aba="E-mails"><span class="material-symbols-outlined">email</span>E-mails corporativos</button>
@@ -95,7 +112,7 @@ function trocarAbaTI(aba) {
 // ===== Busca (mesmo padrão visual do #ceo-busca) =====
 function montarCampoBusca(idInput, placeholder, onFiltrar) {
   return `
-    <input type="text" id="${idInput}" class="busca-funcionario-input" placeholder="${placeholder}" autocomplete="off" style="margin-bottom:12px; width:100%; max-width:320px;">
+    <input type="text" id="${idInput}" class="busca-funcionario-input" placeholder="${placeholder}" autocomplete="off" style=" width:100%; max-width:320px;">
   `;
 }
 
@@ -337,6 +354,10 @@ async function exibirDetalheDiaTI(diaKey, eventosDoDia) {
   }));
 
   painel.innerHTML = `
+    <button type="button" id="ti-cal-voltar" class="ti-cal-btn-voltar">
+      <span class="material-symbols-outlined" aria-hidden="true">arrow_back</span>
+      Voltar
+    </button>
     <strong>Eventos em ${dataFormatada}</strong>
     ${detalhes.map(({ ev, equipamentos, staff }) => `
       <div class="ti-cal-evento-detalhe">
@@ -357,6 +378,9 @@ async function exibirDetalheDiaTI(diaKey, eventosDoDia) {
     <button type="button" id="ti-cal-ir-eventos">Ver na aba Eventos</button>
   `;
 
+  // Volta pro calendário + "Próximos eventos" (renderCalendarioTI recria tudo do zero,
+  // inclusive esse mesmo painel de detalhe no estado inicial).
+  document.getElementById("ti-cal-voltar").addEventListener("click", () => renderCalendarioTI());
   document.getElementById("ti-cal-ir-eventos").addEventListener("click", () => trocarAbaTI("eventos"));
 }
 
@@ -570,15 +594,9 @@ function renderListaEventosTI() {
     const cancelado = orcamentos.length > 0 && orcamentos.every((o) => o.status_controle === "cancelado");
     const linhasOrcamentos = orcamentos.map((o) => {
       const cor = STATUS_CONTROLE_COR[o.status_controle] || "#ccc";
-      const controle = o.travado
-        ? `<span class="ti-badge-controle" style="color:${cor};" title="Status automático (orçamento ${o.status === 'F' ? 'Fechado' : 'Recusado'})">${STATUS_CONTROLE_LABEL[o.status_controle]}</span>`
-        : `<select class="ti-select-controle" data-idorcamento="${o.idorcamento}" style="color:${cor}; border-color:${cor};">
-             ${Object.entries(STATUS_CONTROLE_LABEL).map(([valor, label]) => `<option value="${valor}" ${o.status_controle === valor ? "selected" : ""}>${label}</option>`).join("")}
-           </select>`;
       return `
         <span class="ti-evento-orcamento-item">
           <button type="button" class="ti-link-orcamento" data-nrorcamento="${o.nrorcamento}" title="Abrir orçamento #${o.nrorcamento}">#${o.nrorcamento}</button>
-          ${controle}
         </span>`;
     }).join("");
 
@@ -592,8 +610,8 @@ function renderListaEventosTI() {
           Montagem: ${montagem} — Fim da realização: ${dtfim}<br>
           ${ev.qtd_equipamentos_distintos} equipamento(s) / ${totalAlocado} unidade(s) — ${totalSeparado} já separada(s)
         </div>
-        <div class="ti-evento-orcamentos">${linhasOrcamentos}</div>
-        <div class="ti-evento-controles">
+        <div class="ti-evento-orcamentos">
+          ${linhasOrcamentos}
           <span class="ti-check-separado">
             <label class="ios-checkbox blue">
               <input type="checkbox" class="ti-check-separado-input" data-idorcamento-ancora="${ev.idorcamento_ancora}" ${ev.separado ? "checked" : ""}>
@@ -621,8 +639,8 @@ function renderListaEventosTI() {
   }).join("");
 
   lista.querySelectorAll(".ti-evento-card").forEach((card) => {
-    card.querySelector(".ti-evento-cabecalho").addEventListener("click", () => {
-      toggleDetalheEvento(card);
+    card.querySelectorAll(".ti-evento-cabecalho, .ti-evento-resumo").forEach((area) => {
+      area.addEventListener("click", () => toggleDetalheEvento(card));
     });
   });
 
@@ -668,7 +686,7 @@ function renderListaEventosTI() {
     });
   });
 
-  lista.querySelectorAll(".ti-check-separado-input").forEach((checkbox) => {
+lista.querySelectorAll(".ti-evento-cabecalho").forEach((checkbox) => {
     checkbox.addEventListener("click", (e) => e.stopPropagation());
     checkbox.addEventListener("change", async () => {
       try {
@@ -1212,13 +1230,17 @@ async function renderAbaEstoque() {
             const totalCategoria = modelos.reduce((soma, m) => soma + (Number(m.qtdtotal) || 0), 0);
             const emEstoqueGeral = modelos.reduce((soma, m) => soma + (Number(m.qtdeestoque) || 0), 0);
             const emUso = totalCategoria - emEstoqueGeral;
+            // "Uso interno" é por modelo agora (ver modelos cadastrados dentro do card) --
+            // esse badge no card da categoria só avisa quando TODOS os modelos já
+            // cadastrados são uso interno (nenhum disponível pra evento).
+            const todosModelosUsoInterno = modelos.length > 0 && modelos.every((m) => m.usointerno === true);
             return `
               <div class="ti-card-quadrado ti-card-clicavel" data-idequip="${e.idequip}"
                    data-busca="${e.descequip} ${modelos.map((m) => `${m.marca} ${m.modelo || ''}`).join(' ')}"
                    title="Clique para ver os modelos cadastrados">
                 <span class="ti-card-quadrado-nome">
                   ${e.descequip}
-                  ${e.usointerno ? '<span class="ti-badge-local" title="Nunca aparece pra escolha em orçamento de evento">Uso interno</span>' : ''}
+                  ${todosModelosUsoInterno ? '<span class="ti-badge-local" title="Nenhum modelo cadastrado aqui vai pra evento">Uso interno</span>' : ''}
                 </span>
                 <strong class="ti-card-quadrado-qtd">${totalEstoque}</strong>
                 <span class="ti-card-quadrado-legenda">${legendaLocal}</span>
@@ -1259,8 +1281,10 @@ async function abrirModelosCategoriaTI(idequip) {
   await montarSwalModelosCategoria(equipamento);
 }
 
-// Kit não tem modelos/unidades próprios -- só mostra, pra cada componente, quanto
-// estoque ele tem hoje e quanto o kit exige (mesmo cálculo do card, ver renderAbaEstoque).
+// Kit não tem modelos/unidades próprios -- cada componente é outro equipamento já
+// cadastrado (não-kit). Mostra, pra cada um, quanto estoque ele tem hoje e quanto o
+// kit exige (mesmo cálculo do card, ver renderAbaEstoque), e deixa editar a composição
+// e o "Uso interno" aqui mesmo, igual ao Swal de modelos do equipamento normal.
 async function abrirComposicaoKitTI(idequip) {
   const kit = cacheEquipamentos.find((e) => e.idequip === idequip);
   if (!kit) return;
@@ -1274,9 +1298,10 @@ async function abrirComposicaoKitTI(idequip) {
 
   await Swal.fire({
     title: kit.descequip,
+    width: 1000,
     html: `
       <div class="ti-swal-modelos-grid">
-        ${!componentes.length ? "<p>Nenhum componente cadastrado para este kit.</p>" : componentes.map((c) => {
+        ${!componentes.length ? "<p>Nenhum componente cadastrado para este kit.</p>" : componentes.map((c, i) => {
           const estoqueComponente = estoquePorIdequip[c.idequip] || 0;
           const quantidade = Number(c.quantidade) || 1;
           const disponivel = Math.floor(estoqueComponente / quantidade);
@@ -1290,15 +1315,83 @@ async function abrirComposicaoKitTI(idequip) {
               <div><strong>${quantidade}</strong><span>por kit</span></div>
               <div><strong>${disponivel}</strong><span>kits possíveis</span></div>
             </div>
+            <div class="ti-swal-modelo-acoes">
+              <button type="button" class="ti-btn-remover-componente-kit secundario" data-indice="${i}">Remover do kit</button>
+            </div>
           </div>
         `;
         }).join("")}
+      </div>
+
+      <div class="ti-swal-secao-extra">
+        <h4>+ Adicionar componente</h4>
+        <div class="ti-swal-form-inline" style="position:relative;">
+          <input type="text" id="ti-kit-busca-componente" class="swal2-input uppercase" placeholder="Buscar equipamento..." autocomplete="off">
+          <input type="number" id="ti-kit-qtd-componente" class="swal2-input" placeholder="Quantidade" min="1" value="1">
+          <button type="button" id="ti-btn-add-componente-kit">+ Adicionar</button>
+        </div>
       </div>
     `,
     showConfirmButton: false,
     showCancelButton: true,
     cancelButtonText: "Fechar",
+    didOpen: () => {
+      const popup = Swal.getPopup();
+
+      popup.querySelectorAll(".uppercase").forEach((input) =>
+        input.addEventListener("input", function () { this.value = this.value.toUpperCase(); })
+      );
+
+      let idequipEscolhido = null;
+      const inputBusca = popup.querySelector("#ti-kit-busca-componente");
+      inputBusca.addEventListener("input", () => { idequipEscolhido = null; });
+      ligarBuscaComSugestoes(
+        inputBusca,
+        "ti-kit-lista-sugestoes-estoque",
+        async (termo) => cacheEquipamentos
+          .filter((e) => !e.ehkit && e.idequip !== kit.idequip)
+          .filter((e) => e.descequip?.toLowerCase().includes(termo.toLowerCase()))
+          .slice(0, 20),
+        (e) => e.descequip,
+        (e) => {
+          inputBusca.value = e.descequip;
+          idequipEscolhido = e.idequip;
+        },
+        { mensagemVazia: "Nenhum equipamento encontrado" }
+      );
+
+      popup.querySelector("#ti-btn-add-componente-kit")?.addEventListener("click", async () => {
+        const quantidade = parseInt(popup.querySelector("#ti-kit-qtd-componente").value || "1", 10) || 1;
+        if (!idequipEscolhido) { mostrarMsg("Escolha um equipamento da lista de sugestões.", "#b50000"); return; }
+        const novosComponentes = [
+          ...(kit.complementos || []),
+          { idequip: idequipEscolhido, descequip: inputBusca.value.trim(), quantidade },
+        ];
+        await salvarCamposEquipamentoTI(kit.idequip, { complementos: novosComponentes });
+        await reabrirComposicaoKitTI(kit.idequip);
+      });
+
+      popup.querySelectorAll(".ti-btn-remover-componente-kit").forEach((btn) =>
+        btn.addEventListener("click", async () => {
+          const novosComponentes = (kit.complementos || []).filter((_, i) => i !== Number(btn.dataset.indice));
+          await salvarCamposEquipamentoTI(kit.idequip, { complementos: novosComponentes });
+          await reabrirComposicaoKitTI(kit.idequip);
+        })
+      );
+    },
   });
+}
+
+// Reabre o modal de composição do kit com dados atualizados (mesmo padrão de
+// reabrirModelosCategoriaTI, só que pro equipamento-kit).
+async function reabrirComposicaoKitTI(idequip) {
+  try {
+    const equipamentos = await fetchTI("/equipamentos");
+    cacheEquipamentos = equipamentos;
+    await abrirComposicaoKitTI(idequip);
+  } finally {
+    renderAbaEstoque();
+  }
 }
 
 // Reabre o modal com dados atualizados (chamado depois de entrada/baixa feitas de dentro dele)
@@ -1315,6 +1408,7 @@ async function reabrirModelosCategoriaTI(idequip) {
 
 async function montarSwalModelosCategoria(equipamento) {
   const modelos = equipamento.modelos || [];
+  const complementos = equipamento.complementos || [];
 
   await Swal.fire({
     title: equipamento.descequip,
@@ -1351,6 +1445,18 @@ async function montarSwalModelosCategoria(equipamento) {
                 ? `<span class="ti-badge-local ${abaixoDoMinimo ? "ti-badge-alerta" : ""}" title="Quantidade mínima definida no cadastro do equipamento">Mín: ${minimo}</span>`
                 : ""}
             </div>
+            <label class="ti-swal-check ti-swal-check-pequeno" title="Unidades deste modelo nunca aparecem como disponíveis pra separar num evento">
+              <span class="ios-checkbox">
+                <input type="checkbox" class="ti-chk-modelo-uso-interno" data-idmodelo="${m.id}" ${m.usointerno ? "checked" : ""}>
+                <div class="checkbox-wrapper">
+                  <div class="checkbox-bg"></div>
+                  <svg fill="none" viewBox="0 0 24 24" class="checkbox-icon">
+                    <path stroke-linejoin="round" stroke-linecap="round" stroke-width="3" stroke="currentColor" d="M4 12L10 18L20 6" class="check-path"></path>
+                  </svg>
+                </div>
+              </span>
+              Uso interno
+            </label>
             <div class="ti-swal-modelo-acoes">
               <button type="button" class="ti-btn-entrada" data-idmodelo="${m.id}" data-marca="${m.marca || ''}" data-modelo="${m.modelo || ''}">Entrada</button>
               <button type="button" class="ti-btn-saida secundario" data-idmodelo="${m.id}">Baixa</button>
@@ -1360,7 +1466,31 @@ async function montarSwalModelosCategoria(equipamento) {
           </div>
         `;
         }).join("")}
+        <div class="ti-swal-modelo-card ti-swal-modelo-novo">
+          <div class="ti-swal-modelo-header"><span class="ti-swal-modelo-titulo">+ Novo modelo</span></div>
+          <div class="ti-swal-form-inline">
+            <input type="text" id="ti-novo-modelo-marca" class="swal2-input uppercase" placeholder="Marca (ex: HP)">
+            <input type="text" id="ti-novo-modelo-modelo" class="swal2-input uppercase" placeholder="Modelo (ex: EliteBook)">
+            <input type="number" id="ti-novo-modelo-minimo" class="swal2-input" placeholder="Qtd. mínima" min="0" value="0">
+            <button type="button" id="ti-btn-add-modelo">Adicionar modelo</button>
+          </div>
+        </div>
       </div>
+
+      <div class="ti-swal-secao-extra">
+        <h4>Complementos</h4>
+        <p class="ti-swal-hint">Itens acessórios sugeridos na entrega deste equipamento (ex: Mouse, Carregador).</p>
+        <div class="ti-swal-lista-chips" id="ti-complementos-lista">
+          ${complementos.length
+            ? complementos.map((item, i) => `<span class="ti-chip">${escaparHtml(item)}<button type="button" class="ti-chip-remover" data-indice="${i}">✕</button></span>`).join("")
+            : '<span class="ti-swal-vazio-inline">Nenhum complemento.</span>'}
+        </div>
+        <div class="ti-swal-form-inline">
+          <input type="text" id="ti-novo-complemento" class="swal2-input uppercase" placeholder="Ex: Mouse">
+          <button type="button" id="ti-btn-add-complemento">+ Adicionar</button>
+        </div>
+      </div>
+
     `,
     showConfirmButton: false,
     showCancelButton: true,
@@ -1383,6 +1513,47 @@ async function montarSwalModelosCategoria(equipamento) {
       );
       popup.querySelectorAll(".ti-input-foto-modelo").forEach((input) =>
         input.addEventListener("change", () => enviarFotoModeloTI(equipamento.idequip, input.dataset.idmodelo, input.files[0]))
+      );
+
+      popup.querySelectorAll(".uppercase").forEach((input) =>
+        input.addEventListener("input", function () { this.value = this.value.toUpperCase(); })
+      );
+
+      popup.querySelector("#ti-btn-add-modelo")?.addEventListener("click", async () => {
+        const marca = popup.querySelector("#ti-novo-modelo-marca").value.trim().toUpperCase();
+        const modeloTxt = popup.querySelector("#ti-novo-modelo-modelo").value.trim().toUpperCase();
+        const qtdeminima = parseInt(popup.querySelector("#ti-novo-modelo-minimo").value || "0", 10) || 0;
+        if (!marca) { mostrarMsg("Informe ao menos a marca do modelo.", "#b50000"); return; }
+        const novosModelos = [...(equipamento.modelos || []), { id: gerarIdLocalTI(), marca, modelo: modeloTxt, qtdeminima }];
+        await salvarCamposEquipamentoTI(equipamento.idequip, { modelos: novosModelos });
+        await reabrirModelosCategoriaTI(equipamento.idequip);
+      });
+
+      popup.querySelector("#ti-btn-add-complemento")?.addEventListener("click", async () => {
+        const input = popup.querySelector("#ti-novo-complemento");
+        const valor = input.value.trim().toUpperCase();
+        if (!valor) return;
+        const novaLista = [...(equipamento.complementos || []), valor];
+        await salvarCamposEquipamentoTI(equipamento.idequip, { complementos: novaLista });
+        await reabrirModelosCategoriaTI(equipamento.idequip);
+      });
+
+      popup.querySelectorAll(".ti-chip-remover").forEach((btn) =>
+        btn.addEventListener("click", async () => {
+          const novaLista = (equipamento.complementos || []).filter((_, i) => i !== Number(btn.dataset.indice));
+          await salvarCamposEquipamentoTI(equipamento.idequip, { complementos: novaLista });
+          await reabrirModelosCategoriaTI(equipamento.idequip);
+        })
+      );
+
+      popup.querySelectorAll(".ti-chk-modelo-uso-interno").forEach((chk) =>
+        chk.addEventListener("change", async () => {
+          const novosModelos = (equipamento.modelos || []).map((m) =>
+            String(m.id) === String(chk.dataset.idmodelo) ? { ...m, usointerno: chk.checked } : m
+          );
+          await salvarCamposEquipamentoTI(equipamento.idequip, { modelos: novosModelos });
+          await reabrirModelosCategoriaTI(equipamento.idequip);
+        })
       );
     },
   });
@@ -1689,7 +1860,10 @@ function montarCampoFuncionarioSwal(idSelect) {
   return `<select id="${idSelect}" style="width:100%; margin-top:4px;"><option value=""></option></select>`;
 }
 
-function ativarAutocompleteFuncionarioSwal(idSelect) {
+// `perfil` opcional restringe a busca a um perfil só (ex: "Freelancer", usado pelo
+// "+ Novo empréstimo" da aba Freelancers) -- sem ele, busca a lista padrão de
+// custódia (Interno/InternoH/ExternoH/Externo), igual sempre foi.
+function ativarAutocompleteFuncionarioSwal(idSelect, { perfil } = {}) {
   if (!(window.jQuery && jQuery.fn && jQuery.fn.select2)) return;
   jQuery(`#${idSelect}`).select2({
     width: "100%",
@@ -1700,7 +1874,8 @@ function ativarAutocompleteFuncionarioSwal(idSelect) {
     ajax: {
       transport: async (params, success, failure) => {
         try {
-          const resultados = await fetchTI(`/funcionarios/busca?busca=${encodeURIComponent(params.data.term || "")}`);
+          const qsPerfil = perfil ? `&perfil=${encodeURIComponent(perfil)}` : "";
+          const resultados = await fetchTI(`/funcionarios/busca?busca=${encodeURIComponent(params.data.term || "")}${qsPerfil}`);
           success(resultados);
         } catch (erro) {
           failure(erro);
@@ -1762,7 +1937,11 @@ async function abrirEntregarTI(idunidade, idequip, idmodelo) {
   }
 }
 
-async function devolverUnidadeTI(idunidade, idequip, idmodelo) {
+// `modoCustodia` (ver carregarListaAlocacao) só importa quando chamado de dentro da
+// Alocação -- devolver um equipamento de freelancer recarrega em modo "freelancer" em
+// vez de voltar pro padrão "funcionario" (renderAbaCustodia). Chamado também pela aba
+// Estoque (sem esse param), onde a diferença não existe.
+async function devolverUnidadeTI(idunidade, idequip, idmodelo, modoCustodia = null) {
   const { isConfirmed } = await Swal.fire({
     title: "Devolver ao estoque?",
     icon: "question",
@@ -1780,7 +1959,7 @@ async function devolverUnidadeTI(idunidade, idequip, idmodelo) {
       body: JSON.stringify({ idunidade: Number(idunidade) }),
     });
     reabrirUnidadesModelo(idequip, idmodelo);
-    renderAbaCustodia();
+    if (modoCustodia) carregarListaAlocacao("", modoCustodia); else renderAbaCustodia();
   } catch (erro) {
     console.error("Erro ao devolver equipamento:", erro);
     Swal.fire("Erro", erro.message || "Erro ao devolver equipamento.", "error");
@@ -1957,43 +2136,68 @@ async function renderAbaCustodia() {
   container.innerHTML = tiLoading("Carregando funcionários...");
 
   try {
-    await carregarListaAlocacao("");
+    await carregarListaAlocacao("", "funcionario");
   } catch (erro) {
     console.error("Erro ao carregar alocação:", erro);
     container.innerHTML = tiVazio("Erro ao carregar alocação.", "error");
   }
 }
 
-async function carregarListaAlocacao(perfil) {
+// `modo` troca entre "funcionario" (padrão, sempre que a aba abre) e "freelancer" --
+// freelancer é um funcionário de verdade, só com perfil='Freelancer' (fora da lista
+// padrão de custódia), então é a MESMA rota GET /custodia/funcionarios dos dois
+// modos, só muda o filtro de perfil. Reaproveita o mesmo card/linha de equipamento
+// -- só os botões de ação por pessoa (e por equipamento) mudam conforme o modo.
+async function carregarListaAlocacao(perfil, modo = "funcionario") {
   const container = document.getElementById("ti-aba-custodia");
   if (!container) return;
 
-  const query = perfil ? `?perfil=${encodeURIComponent(perfil)}` : "";
-  const funcionarios = await fetchTI(`/custodia/funcionarios${query}`);
+  // Freelancer é um funcionário de verdade, só com perfil='Freelancer' (fora da lista
+  // padrão Interno/InternoH/ExternoH/Externo) -- mesma rota, mesmo formato de retorno,
+  // só muda o filtro de perfil (ver GET /custodia/funcionarios, routes/rotaTI.js).
+  const query = modo === "freelancer" ? "?perfil=Freelancer" : (perfil ? `?perfil=${encodeURIComponent(perfil)}` : "");
+  const pessoas = await fetchTI(`/custodia/funcionarios${query}`);
 
   container.innerHTML = `
     <div class="ti-custodia-filtros">
-      ${montarCampoBusca("ti-busca-custodia", "Buscar funcionário...")}
+      <div class="ti-custodia-switch">
+        <button type="button" class="ti-custodia-switch-btn ${modo === "funcionario" ? "ativo" : ""}" data-modo="funcionario">Funcionários</button>
+        <button type="button" class="ti-custodia-switch-btn ${modo === "freelancer" ? "ativo" : ""}" data-modo="freelancer">Freelancers</button>
+      </div>
+      ${montarCampoBusca("ti-busca-custodia", modo === "freelancer" ? "Buscar freelancer..." : "Buscar funcionário...")}
+      ${modo === "freelancer" ? `
+        <button type="button" id="ti-btn-novo-emprestimo-freelancer">
+          <span class="material-symbols-outlined">person_add</span>Novo empréstimo
+        </button>
+      ` : ""}
     </div>
     <div id="ti-lista-custodia">
-      ${!funcionarios.length ? tiVazio("Nenhum funcionário encontrado.", "badge") : funcionarios.map((f, idx) => `
+      ${!pessoas.length
+        ? tiVazio(modo === "freelancer" ? "Nenhum freelancer com equipamento no momento." : "Nenhum funcionário encontrado.", "badge")
+        : pessoas.map((f, idx) => `
         <div class="ti-card-linha" data-busca="${f.nome}">
           <div class="ti-card-linha-topo ti-func-nome" data-idx="${idx}" title="Clique para ver as ações">
             <span class="ti-card-linha-titulo">
               <span class="material-symbols-outlined ti-func-seta">expand_more</span>${f.nome}
             </span>
-            <span class="ti-card-linha-stat">${TI_PERFIL_LABEL[f.perfil] || f.perfil || "-"} · ${f.equipamentos.length} equipamento(s)</span>
+            <span class="ti-card-linha-stat">${modo === "freelancer" ? "Freelancer" : (TI_PERFIL_LABEL[f.perfil] || f.perfil || "-")} · ${f.equipamentos.length} equipamento(s)</span>
           </div>
           <div class="ti-func-acoes" data-idx="${idx}" style="display:none;">
-            <button type="button" class="ti-func-btn-adicionar" ${f.equipamentos.length ? "disabled" : ""}>
-              <span class="material-symbols-outlined">add_circle</span>Adicionar equipamento
-            </button>
-            <button type="button" class="ti-func-btn-troca secundario" ${!f.equipamentos.length ? "disabled" : ""}>
-              <span class="material-symbols-outlined">sync_alt</span>Procedimento de troca
-            </button>
-            <button type="button" class="ti-func-btn-manutencao secundario" ${!f.equipamentos.length ? "disabled" : ""}>
-              <span class="material-symbols-outlined">build</span>Manutenção + máquina temporária
-            </button>
+            ${modo === "freelancer" ? `
+              <button type="button" class="ti-freelancer-btn-emprestar">
+                <span class="material-symbols-outlined">add_circle</span>Emprestar equipamento
+              </button>
+            ` : `
+              <button type="button" class="ti-func-btn-adicionar" ${f.equipamentos.length ? "disabled" : ""}>
+                <span class="material-symbols-outlined">add_circle</span>Adicionar equipamento
+              </button>
+              <button type="button" class="ti-func-btn-troca secundario" ${!f.equipamentos.length ? "disabled" : ""}>
+                <span class="material-symbols-outlined">sync_alt</span>Procedimento de troca
+              </button>
+              <button type="button" class="ti-func-btn-manutencao secundario" ${!f.equipamentos.length ? "disabled" : ""}>
+                <span class="material-symbols-outlined">build</span>Manutenção + máquina temporária
+              </button>
+            `}
           </div>
           ${f.equipamentos.length ? `
             <div class="ti-card-linha-detalhe">
@@ -2005,7 +2209,7 @@ async function carregarListaAlocacao(perfil) {
                   </span>
                   <span class="ti-card-linha-acoes">
                     <button type="button" class="ti-btn-devolver" data-idunidade="${eq.idunidade}" data-idequip="${eq.idequip}" data-idmodelo="${eq.idmodelo}">Devolver</button>
-                    <button type="button" class="ti-btn-transferir" data-idunidade="${eq.idunidade}" data-idequip="${eq.idequip}" data-idmodelo="${eq.idmodelo}">Transferir</button>
+                    ${modo === "freelancer" ? "" : `<button type="button" class="ti-btn-transferir" data-idunidade="${eq.idunidade}" data-idequip="${eq.idequip}" data-idmodelo="${eq.idmodelo}">Transferir</button>`}
                     <button type="button" class="ti-btn-historico-unidade" data-idunidade="${eq.idunidade}" data-patrimonio="${eq.patrimonio}">Histórico</button>
                   </span>
                 </div>
@@ -2019,8 +2223,17 @@ async function carregarListaAlocacao(perfil) {
 
   ativarBuscaClientSide("ti-busca-custodia", "#ti-lista-custodia .ti-card-linha", (card) => card.dataset.busca || "");
 
+  container.querySelectorAll(".ti-custodia-switch-btn").forEach((btn) =>
+    btn.addEventListener("click", () => {
+      if (btn.dataset.modo === modo) return;
+      carregarListaAlocacao("", btn.dataset.modo);
+    })
+  );
+
+  document.getElementById("ti-btn-novo-emprestimo-freelancer")?.addEventListener("click", () => abrirNovoEmprestimoFreelancerTI());
+
   container.querySelectorAll(".ti-btn-devolver").forEach((btn) =>
-    btn.addEventListener("click", () => devolverUnidadeTI(btn.dataset.idunidade, btn.dataset.idequip, btn.dataset.idmodelo))
+    btn.addEventListener("click", () => devolverUnidadeTI(btn.dataset.idunidade, btn.dataset.idequip, btn.dataset.idmodelo, modo))
   );
   container.querySelectorAll(".ti-btn-transferir").forEach((btn) =>
     btn.addEventListener("click", () => abrirTransferirTI(btn.dataset.idunidade, btn.dataset.idequip, btn.dataset.idmodelo))
@@ -2031,18 +2244,26 @@ async function carregarListaAlocacao(perfil) {
   container.querySelectorAll(".ti-func-nome").forEach((el) =>
     el.addEventListener("click", () => toggleAcoesFuncionarioTI(el.dataset.idx))
   );
-  container.querySelectorAll(".ti-func-btn-adicionar").forEach((btn) => {
-    const idx = Number(btn.closest(".ti-func-acoes").dataset.idx);
-    btn.addEventListener("click", () => abrirAdicionarEquipamentoFuncionarioTI(funcionarios[idx]));
-  });
-  container.querySelectorAll(".ti-func-btn-troca").forEach((btn) => {
-    const idx = Number(btn.closest(".ti-func-acoes").dataset.idx);
-    btn.addEventListener("click", () => abrirTrocaEquipamentoFuncionarioTI(funcionarios[idx]));
-  });
-  container.querySelectorAll(".ti-func-btn-manutencao").forEach((btn) => {
-    const idx = Number(btn.closest(".ti-func-acoes").dataset.idx);
-    btn.addEventListener("click", () => abrirManutencaoComTemporariaTI(funcionarios[idx]));
-  });
+
+  if (modo === "freelancer") {
+    container.querySelectorAll(".ti-freelancer-btn-emprestar").forEach((btn) => {
+      const idx = Number(btn.closest(".ti-func-acoes").dataset.idx);
+      btn.addEventListener("click", () => abrirAdicionarEquipamentoFuncionarioTI(pessoas[idx], "freelancer"));
+    });
+  } else {
+    container.querySelectorAll(".ti-func-btn-adicionar").forEach((btn) => {
+      const idx = Number(btn.closest(".ti-func-acoes").dataset.idx);
+      btn.addEventListener("click", () => abrirAdicionarEquipamentoFuncionarioTI(pessoas[idx]));
+    });
+    container.querySelectorAll(".ti-func-btn-troca").forEach((btn) => {
+      const idx = Number(btn.closest(".ti-func-acoes").dataset.idx);
+      btn.addEventListener("click", () => abrirTrocaEquipamentoFuncionarioTI(pessoas[idx]));
+    });
+    container.querySelectorAll(".ti-func-btn-manutencao").forEach((btn) => {
+      const idx = Number(btn.closest(".ti-func-acoes").dataset.idx);
+      btn.addEventListener("click", () => abrirManutencaoComTemporariaTI(pessoas[idx]));
+    });
+  }
 }
 
 function toggleAcoesFuncionarioTI(idx) {
@@ -2066,11 +2287,19 @@ function montarCampoEquipamentoEstoqueSwal(idBase, placeholder = "Buscar equipam
 }
 
 let tiBuscaEquipamentoDebounce = null;
-function ativarAutocompleteEquipamentoEstoqueSwal(idBase) {
+// `apenasCategoria` é uma restrição temporária (ver chamadas em Alocação): enquanto só
+// notebook tem patrimônio de uso interno fazendo sentido pra entregar/trocar/emprestar
+// com funcionário, a busca dessas telas fica restrita a essa categoria -- não mexe na
+// rota /estoque/busca em si (ela é compartilhada com Manutenção, que busca tudo).
+function ativarAutocompleteEquipamentoEstoqueSwal(idBase, { apenasCategoria } = {}) {
   const input = document.getElementById(`${idBase}-input`);
   const hidden = document.getElementById(`${idBase}-id`);
   const lista = document.getElementById(`${idBase}-lista`);
   if (!input || !hidden || !lista) return;
+
+  const filtrarPorCategoria = (resultados) => apenasCategoria
+    ? resultados.filter((u) => (u.descequip || "").toLowerCase().includes(apenasCategoria.toLowerCase()))
+    : resultados;
 
   const renderLista = (resultados) => {
     lista.innerHTML = "";
@@ -2103,7 +2332,7 @@ function ativarAutocompleteEquipamentoEstoqueSwal(idBase) {
     tiBuscaEquipamentoDebounce = setTimeout(async () => {
       try {
         const resultados = await fetchTI(`/estoque/busca?busca=${encodeURIComponent(termo)}`);
-        renderLista(resultados);
+        renderLista(filtrarPorCategoria(resultados));
       } catch (erro) {
         console.error("Erro ao buscar equipamento em estoque:", erro);
       }
@@ -2120,7 +2349,7 @@ function ativarAutocompleteEquipamentoEstoqueSwal(idBase) {
     if (!termo) return;
 
     try {
-      const resultados = await fetchTI(`/estoque/busca?busca=${encodeURIComponent(termo)}`);
+      const resultados = filtrarPorCategoria(await fetchTI(`/estoque/busca?busca=${encodeURIComponent(termo)}`));
       // O leitor de QR/código de barras só traz a tag final (ex: "0001"), não o
       // patrimônio completo com o prefixo (ex: "NTB-HP-PROBOOK-0001") — compara
       // com o patrimônio inteiro OU só com o trecho após o último "-".
@@ -2381,7 +2610,10 @@ function montarCheckboxPadraoSwal(idInput, label) {
 }
 
 // Opção 1: adicionar equipamento a um funcionário que ainda não tem nenhum
-async function abrirAdicionarEquipamentoFuncionarioTI(f) {
+// `modoCustodia` (ver carregarListaAlocacao) só importa quando chamado da aba
+// Freelancers -- recarrega em modo "freelancer" em vez de voltar pro padrão
+// "funcionario" (renderAbaCustodia) depois de entregar.
+async function abrirAdicionarEquipamentoFuncionarioTI(f, modoCustodia = null) {
   const { value: formValues } = await Swal.fire({
     title: `Adicionar equipamento — ${f.nome}`,
     html: `
@@ -2399,7 +2631,7 @@ async function abrirAdicionarEquipamentoFuncionarioTI(f) {
     confirmButtonText: "Entregar",
     cancelButtonText: "Cancelar",
     reverseButtons: true,
-    didOpen: () => ativarAutocompleteEquipamentoEstoqueSwal("swal-ti-equip-add"),
+    didOpen: () => ativarAutocompleteEquipamentoEstoqueSwal("swal-ti-equip-add", { apenasCategoria: "notebook" }),
     preConfirm: async () => {
       const idunidade = lerEquipamentoEstoqueSwal("swal-ti-equip-add");
       const observacao = document.getElementById("swal-ti-observacao").value.trim();
@@ -2425,9 +2657,76 @@ async function abrirAdicionarEquipamentoFuncionarioTI(f) {
       body: JSON.stringify({ idfuncionario: f.idfuncionario, ...formValues }),
     });
     await Swal.fire("Sucesso!", "Equipamento entregue.", "success");
-    renderAbaCustodia();
+    if (modoCustodia) carregarListaAlocacao("", modoCustodia); else renderAbaCustodia();
   } catch (erro) {
     console.error("Erro ao entregar equipamento:", erro);
+    Swal.fire("Erro", erro.message || "Erro ao entregar equipamento.", "error");
+  }
+}
+
+// "+ Novo empréstimo" da aba Freelancers -- diferente de abrirAdicionarEquipamentoFuncionarioTI
+// porque ali o funcionário já vem de um card existente; aqui ainda não existe nenhum
+// equipamento com esse freelancer pra ter um card pra clicar, então também precisa
+// buscar QUEM é (select2 restrito a perfil='Freelancer', mesmo padrão de
+// ativarAutocompleteFuncionarioSwal/abrirTransferirTI) antes de escolher o equipamento.
+async function abrirNovoEmprestimoFreelancerTI() {
+  const { value: formValues } = await Swal.fire({
+    title: "Novo empréstimo a freelancer",
+    html: `
+      <div class="ti-swal-form">
+        <label class="ti-swal-label">Freelancer
+          ${montarCampoFuncionarioSwal("swal-ti-freelancer-func")}
+        </label>
+        <label class="ti-swal-label">Equipamento
+          ${montarCampoEquipamentoEstoqueSwal("swal-ti-equip-freelancer")}
+        </label>
+        <label class="ti-swal-label">Observação (opcional)
+          <input type="text" id="swal-ti-observacao" class="swal2-input" style="margin:4px 0 0;">
+        </label>
+      </div>
+    `,
+    focusConfirm: false,
+    showCancelButton: true,
+    confirmButtonText: "Entregar",
+    cancelButtonText: "Cancelar",
+    reverseButtons: true,
+    didOpen: () => {
+      ativarAutocompleteFuncionarioSwal("swal-ti-freelancer-func", { perfil: "Freelancer" });
+      ativarAutocompleteEquipamentoEstoqueSwal("swal-ti-equip-freelancer", { apenasCategoria: "notebook" });
+    },
+    preConfirm: async () => {
+      const idfuncionario = document.getElementById("swal-ti-freelancer-func").value;
+      const idunidade = lerEquipamentoEstoqueSwal("swal-ti-equip-freelancer");
+      const observacao = document.getElementById("swal-ti-observacao").value.trim();
+      if (!idfuncionario) {
+        Swal.showValidationMessage("Selecione um freelancer.");
+        return false;
+      }
+      if (!idunidade) {
+        const termo = document.getElementById("swal-ti-equip-freelancer-input")?.value.trim();
+        if (termo) {
+          await avisarTagNaoCadastradaSwal("swal-ti-equip-freelancer");
+        } else {
+          Swal.showValidationMessage("Selecione um equipamento.");
+        }
+        return false;
+      }
+      return { idfuncionario: Number(idfuncionario), idunidade, observacao };
+    }
+  });
+
+  if (!formValues) return;
+
+  try {
+    await fetchTI("/custodia/entregar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(formValues),
+    });
+    await Swal.fire("Sucesso!", "Equipamento entregue.", "success");
+    carregarListaAlocacao("", "freelancer");
+  } catch (erro) {
+    console.error("Erro ao entregar equipamento a freelancer:", erro);
     Swal.fire("Erro", erro.message || "Erro ao entregar equipamento.", "error");
   }
 }
@@ -2463,7 +2762,7 @@ async function abrirTrocaEquipamentoFuncionarioTI(f) {
     confirmButtonText: "Entregar novo equipamento",
     cancelButtonText: "Cancelar",
     reverseButtons: true,
-    didOpen: () => ativarAutocompleteEquipamentoEstoqueSwal("swal-ti-equip-novo"),
+    didOpen: () => ativarAutocompleteEquipamentoEstoqueSwal("swal-ti-equip-novo", { apenasCategoria: "notebook" }),
     preConfirm: async () => {
       const idunidadeAntiga = Number(document.getElementById("swal-ti-substituido").value);
       const idunidadeNovo = lerEquipamentoEstoqueSwal("swal-ti-equip-novo");
@@ -2554,7 +2853,7 @@ async function abrirManutencaoComTemporariaTI(f) {
       });
       document.getElementById("swal-ti-temp-feito").addEventListener("change", (e) => {
         document.getElementById("swal-ti-temp-wrap").style.display = e.target.checked ? "block" : "none";
-        if (e.target.checked) ativarAutocompleteEquipamentoEstoqueSwal("swal-ti-equip-temp");
+        if (e.target.checked) ativarAutocompleteEquipamentoEstoqueSwal("swal-ti-equip-temp", { apenasCategoria: "notebook" });
       });
     },
     preConfirm: async () => {
