@@ -328,11 +328,12 @@ function idadeEmParts(nascimento, ref) {
 }
 
 // Percentual do plano do TITULAR custeado pela empresa (o funcionário paga o resto).
-// Dependentes são cobrados integralmente do funcionário.
-const PLANO_EMPRESA_PCT_TITULAR = 0.40;
+// Dependentes são cobrados integralmente do funcionário. Regra do RH (2026-10-02): titular
+// paga 50% do valor do tipo de convênio; cada dependente paga 100%.
+const PLANO_EMPRESA_PCT_TITULAR = 0.50;
 
 // Desconto de plano de saúde: soma a parte do FUNCIONÁRIO da faixa etária do titular
-// (empresa paga 40%, funcionário 60%) + o valor CHEIO de cada dependente.
+// (empresa paga 50%, funcionário 50%) + o valor CHEIO de cada dependente.
 // Cada item traz valorFaixa (cheio), parteEmpresa e valor (o que o funcionário paga).
 function calcularPlanoSaude(funcionario, faixas, ref) {
   if (!Array.isArray(faixas) || !faixas.length) return { total: 0, itens: [] };
@@ -358,6 +359,9 @@ function calcularPlanoSaude(funcionario, faixas, ref) {
   let deps = funcionario.dependentesdados;
   if (typeof deps === "string") { try { deps = JSON.parse(deps); } catch { deps = []; } }
   (Array.isArray(deps) ? deps : []).forEach((dep) => {
+    // plano === false: dependente fora do convênio (ex.: já está no plano do outro responsável).
+    // Continua contando em fe.dependentes pro IRRF. Cadastro antigo sem o campo = no plano.
+    if (dep.plano === false) return;
     const idade = idadeEmParts(dep.nascimento, ref);
     const v = valorDaFaixa(idade);
     if (v != null) itens.push({
@@ -368,6 +372,29 @@ function calcularPlanoSaude(funcionario, faixas, ref) {
 
   const total = round2(itens.reduce((s, i) => s + i.valor, 0));
   return { total, itens, empresaPctTitular: PLANO_EMPRESA_PCT_TITULAR };
+}
+
+// Desconto de plano de saúde do holerite MENSAL: item AUTOMÁTICO (recalculado a cada leitura de
+// rascunho, igual VA/VT/INSS/IRRF). Antes só a tela individual de holerite NÃO salvo o incluía, então
+// os holerites pré-gerados e a lista da Folha nunca mostravam o plano.
+const PLANO_SAUDE_DESC = "Plano de Saúde";
+
+// Plano de saúde do funcionário no mês de vencimento (mes/ano): { total, itens } — total 0 se não
+// aderiu, se não há tipo escolhido ou se o tipo não tem faixa pra idade. Mesma conta de GET /holerite.
+async function planoSaudeFuncionario(idempresa, idfuncionario, mes, ano) {
+  const f = (await pool.query(
+    `SELECT f.nome, f.datanascimento, f.idtipoplanosaude, fe.adesaoplanosaude, fe.dependentesdados
+       FROM funcionarios f JOIN funcionarioempresas fe ON fe.idfuncionario = f.idfuncionario
+      WHERE f.idfuncionario = $1 AND fe.idempresa = $2`,
+    [idfuncionario, idempresa]
+  )).rows[0];
+  if (!f || !f.adesaoplanosaude || !f.idtipoplanosaude) return { total: 0, itens: [] };
+  const faixas = (await pool.query(
+    `SELECT de, ate, valor FROM faixasplanosaude WHERE idtipoplanosaude = $1 ORDER BY de NULLS FIRST`,
+    [f.idtipoplanosaude]
+  )).rows;
+  const ref = { y: ano, m: mes - 1, d: new Date(ano, mes, 0).getDate() };
+  return calcularPlanoSaude(f, faixas, ref);
 }
 
 // Anos completos de serviço entre admissão e desligamento (p/ aviso prévio proporcional).
@@ -1070,8 +1097,12 @@ router.get("/holerite", async (req, res) => {
       const proventosManuais = itens
         .filter((i) => i.tipo === "P" && !DESCRICOES_AUTOMATICAS.has(i.descricao))
         .reduce((s, i) => s + (Number(i.valor) || 0), 0);
-      const automaticos = montarItensDoZero(funcionario, paramsComp, diasUteis, proventosManuais, ajusteFerias.diasFerias);
+      const automaticos = montarItensDoZero({ ...funcionario, planoSaudeTotal: planoSaude.total }, paramsComp, diasUteis, proventosManuais, ajusteFerias.diasFerias);
       const pendentes = new Map(automaticos.map((i) => [i.descricao, i]));
+      // Plano de saúde gravado antes de a adesão ser desmarcada (ou sem faixa pra idade): sai.
+      if (!pendentes.has(PLANO_SAUDE_DESC)) {
+        for (let k = itens.length - 1; k >= 0; k--) if (itens[k].descricao === PLANO_SAUDE_DESC) itens.splice(k, 1);
+      }
       // Desconto de dias de férias gravado de uma programação que foi cancelada depois: não
       // é mais gerado, então sai (os outros automáticos sempre são gerados).
       if (!pendentes.has(FERIAS_MES_DESC)) {
@@ -1301,7 +1332,8 @@ router.put("/holerite/:id/conferir", async (req, res) => {
             `SELECT tipo, descricao, valor FROM folhaitens WHERE idholerite = $1`,
             [idholerite]
           )).rows;
-          const itensNovos = mesclarItensAutomaticos(gravados, func, params, diasUteis, ajuste.diasFerias);
+          const planoConf = await planoSaudeFuncionario(idempresa, linha.idfuncionario, linha.mes, linha.ano);
+          const itensNovos = mesclarItensAutomaticos(gravados, { ...func, planoSaudeTotal: planoConf.total }, params, diasUteis, ajuste.diasFerias);
           await pool.query(`UPDATE folhaholerite SET salariobase = $1 WHERE idholerite = $2`, [salariobase, idholerite]);
           await pool.query(`DELETE FROM folhaitens WHERE idholerite = $1`, [idholerite]);
           for (const i of itensNovos) {
@@ -2395,7 +2427,8 @@ async function computarLinhaFolha(idempresa, f, mes, ano, params, diasUteis) {
       // dias de férias do VA/VT — ver ajusteFeriasMensal.
       const ajuste = await ajusteFeriasMensal(idempresa, f.idfuncionario, mes, ano);
       const d = await resolverDiasBeneficio(idempresa, f.idfuncionario, mes, ano, diasUteis, ajuste, head.conferido_beneficios_em);
-      const itens = mesclarItensAutomaticos(gravados, f, params, d.dias, ajuste.diasFerias);
+      const plano = await planoSaudeFuncionario(idempresa, f.idfuncionario, mes, ano);
+      const itens = mesclarItensAutomaticos(gravados, { ...f, planoSaudeTotal: plano.total }, params, d.dias, ajuste.diasFerias);
       const t = calcularTotais(salariobase, itens);
       return {
         diasBeneficio: d.dias, diasOrigem: d.origem, diasJustificativa: d.justificativa, diasCalendario: d.diasCalendario,
@@ -2478,13 +2511,16 @@ function montarItensDoZero(f, params, diasUteis, proventosTributaveis = 0, diasF
     { tipo: "D", descricao: "INSS", valor: inss },
     { tipo: "D", descricao: "IRRF", valor: ir.irrf },
   ];
+  // Plano de saúde (já calculado por quem chama: f.planoSaudeTotal). Desconto pós-imposto — não
+  // entra na base de INSS/IRRF.
+  if (Number(f.planoSaudeTotal) > 0) itens.push({ tipo: "D", descricao: PLANO_SAUDE_DESC, valor: round2(f.planoSaudeTotal) });
   if (descontoFerias > 0) itens.push({ tipo: "D", descricao: FERIAS_MES_DESC, valor: descontoFerias });
   return itens;
 }
 
 // Descrições dos itens que montarItensDoZero recalcula sozinho. Todo o resto em folhaitens foi
 // lançado à mão (hora extra, plano de saúde, adiantamento...) e tem que sobreviver ao recálculo.
-const DESCRICOES_AUTOMATICAS = new Set([VA_DESC, VT_DESC, "INSS", "IRRF", FERIAS_MES_DESC]);
+const DESCRICOES_AUTOMATICAS = new Set([VA_DESC, VT_DESC, "INSS", "IRRF", FERIAS_MES_DESC, PLANO_SAUDE_DESC]);
 
 // Recalcula os itens automáticos (VA/VT/INSS/IRRF) de um holerite MENSAL a partir do cadastro,
 // preservando os lançados à mão. Antes disso, a lista (computarLinhaFolha) e o PUT /conferir
@@ -2509,6 +2545,7 @@ function diasUteisSemFerias(diasUteis, ajuste) {
 // garantirHoleriteMensal (persiste de verdade).
 async function montarItensPrevisaoMensal(idempresa, f, mes, ano, params, diasUteis) {
   const salariobase = Number(f.salario) || 0;
+  const planoTotal = (await planoSaudeFuncionario(idempresa, f.idfuncionario, mes, ano)).total;
   const va = Math.round((Number(f.valealim) || 0) * diasUteis * 100) / 100;
   const vt = Math.round((Number(f.valetrnsp) || 0) * diasUteis * 100) / 100;
 
@@ -2535,7 +2572,7 @@ async function montarItensPrevisaoMensal(idempresa, f, mes, ano, params, diasUte
     const itensAnteriores = (await pool.query(
       `SELECT tipo, descricao, valor FROM folhaitens WHERE idholerite = $1`,
       [ant.idholerite]
-    )).rows.filter((i) => i.tipo !== "P" && i.descricao !== FERIAS_MES_DESC).map((i) => {
+    )).rows.filter((i) => i.tipo !== "P" && i.descricao !== FERIAS_MES_DESC && i.descricao !== PLANO_SAUDE_DESC).map((i) => {
       if (i.tipo === "B" && i.descricao === VA_DESC) return { ...i, valor: va };
       if (i.tipo === "B" && i.descricao === VT_DESC) return { ...i, valor: vt };
       if (i.tipo === "D" && i.descricao === "INSS") return { ...i, valor: inss };
@@ -2547,11 +2584,13 @@ async function montarItensPrevisaoMensal(idempresa, f, mes, ano, params, diasUte
     if (!tem(VT_DESC)) itensAnteriores.push({ tipo: "B", descricao: VT_DESC, valor: vt });
     if (!tem("INSS")) itensAnteriores.push({ tipo: "D", descricao: "INSS", valor: inss });
     if (!tem("IRRF")) itensAnteriores.push({ tipo: "D", descricao: "IRRF", valor: ir.irrf });
+    // Plano de saúde: nunca copiado do mês anterior (idade/faixa/dependentes mudam) — recalculado.
+    if (planoTotal > 0) itensAnteriores.push({ tipo: "D", descricao: PLANO_SAUDE_DESC, valor: round2(planoTotal) });
     return itensAnteriores;
   }
 
-  // Sem histórico: monta do zero (VA/VT + INSS/IRRF sobre o salário base).
-  return montarItensDoZero(f, params, diasUteis);
+  // Sem histórico: monta do zero (VA/VT + INSS/IRRF sobre o salário base + plano de saúde).
+  return montarItensDoZero({ ...f, planoSaudeTotal: planoTotal }, params, diasUteis);
 }
 
 // Garante que existe um holerite MENSAL real (persistido) pra competência — cria com o
