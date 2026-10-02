@@ -177,6 +177,25 @@ function calcularINSS(bruto, params) {
   return Math.round(inss * 100) / 100;
 }
 
+// INSS pelo método da PARCELA A DEDUZIR (alíquota da faixa × base − deduzir), centavos CORTADOS.
+// Usado só nas FÉRIAS do empregado doméstico (funcionarioempresas.domestico) — contabilidade,
+// 2026-10-02: base 3.657,33 → 3.657,33 × 12% − 111,40 = 327,4796 → 327,47. A parcela a deduzir
+// fica em cada faixa de aliquotas.inssfaixas (campo "deduzir", editável na tela de Alíquotas).
+// Acima do teto da última faixa a base é limitada ao teto (INSS máximo). Faixa sem "deduzir"
+// (tabela antiga nunca reeditada) cai no cálculo fatiado normal, pra não calcular errado.
+function calcularINSSDeducao(bruto, params) {
+  const faixas = params.inss_faixas || [];
+  if (!faixas.length || faixas.some((f) => f.deduzir === undefined || f.deduzir === null)) {
+    return calcularINSS(bruto, params);
+  }
+  const teto = Number(faixas[faixas.length - 1].ate);
+  const base = Math.min(Number(bruto) || 0, teto);
+  const faixa = faixas.find((f) => base <= Number(f.ate)) || faixas[faixas.length - 1];
+  const inss = base * Number(faixa.aliquota) - Number(faixa.deduzir);
+  // + 1e-7: evita perder 1 centavo por erro de ponto flutuante.
+  return Math.max(0, Math.floor(inss * 100 + 1e-7) / 100);
+}
+
 // Imposto bruto de uma base segundo a tabela progressiva (faixa.ate=null => última, sem teto).
 function impostoPelaTabela(base, faixas) {
   let faixa = faixas[faixas.length - 1];
@@ -1780,7 +1799,7 @@ const FERIAS_MES_DESC = "Dias de férias (pagos no recibo de férias)";
 
 // Itens do recibo: férias + 1/3 tributáveis (INSS/IRRF próprios, IRRF em separado do mês);
 // abono pecuniário + 1/3 são isentos (art. 144 CLT) — entram no líquido, fora da base.
-function montarItensReciboFerias(salario, dependentes, params, diasGozo, abono, perfil) {
+function montarItensReciboFerias(salario, dependentes, params, diasGozo, abono, perfil, domestico = false) {
   const s = Number(salario) || 0;
   const ferias = round2(s / 30 * diasGozo);
   const terco = round2(ferias / 3);
@@ -1795,7 +1814,8 @@ function montarItensReciboFerias(salario, dependentes, params, diasGozo, abono, 
   }
   const baseTributavel = ferias + terco;
   if (perfilTemImposto(perfil)) {
-    const inss = calcularINSS(baseTributavel, params);
+    // Doméstico: INSS de férias por alíquota × base − parcela a deduzir (ver calcularINSSDeducao).
+    const inss = domestico ? calcularINSSDeducao(baseTributavel, params) : calcularINSS(baseTributavel, params);
     const ir = calcularIRRF(baseTributavel, inss, dependentes, params);
     if (inss > 0) itens.push({ tipo: "D", descricao: "INSS", valor: inss });
     if (ir.irrf > 0) itens.push({ tipo: "D", descricao: "IRRF", valor: ir.irrf });
@@ -1874,14 +1894,14 @@ async function recalcularReciboFerias(client, idempresa, idholerite) {
     return;
   }
   const h = (await client.query(
-    `SELECT h.idfuncionario, h.ano, fe.salario, fe.dependentes, fe.perfil
+    `SELECT h.idfuncionario, h.ano, fe.salario, fe.dependentes, fe.perfil, fe.domestico
        FROM folhaholerite h JOIN funcionarioempresas fe ON fe.idfuncionario = h.idfuncionario AND fe.idempresa = h.idempresa
       WHERE h.idholerite = $1`,
     [idholerite]
   )).rows[0];
   const params = await obterParametros(h.ano);
   const diasGozo = gozos.reduce((s, g) => s + (Number(g.dias) || 0), 0);
-  const itens = montarItensReciboFerias(h.salario, h.dependentes, params, diasGozo, gozos.some((g) => g.abono), h.perfil);
+  const itens = montarItensReciboFerias(h.salario, h.dependentes, params, diasGozo, gozos.some((g) => g.abono), h.perfil, h.domestico === true);
   const obs = `Gozo: ${gozos.map((g) => `${g.ini.split("-").reverse().join("/")} a ${g.fim.split("-").reverse().join("/")}`).join(" e ")}`
     + ` · Período aquisitivo ${gozos[0].aq_ini.split("-").reverse().join("/")} a ${gozos[0].aq_fim.split("-").reverse().join("/")}`
     + ` · Pagar até ${vencimentoFerias(gozos[0].ini).split("-").reverse().join("/")}`;
@@ -1988,7 +2008,7 @@ async function prepararProgramacaoFerias(idempresa, body) {
 
   // Recibos: um por mês de INÍCIO do gozo (ver UNIQUE de folhaholerite).
   const cadastro = (await pool.query(
-    `SELECT salario, dependentes, perfil FROM funcionarioempresas WHERE idfuncionario = $1 AND idempresa = $2`,
+    `SELECT salario, dependentes, perfil, domestico FROM funcionarioempresas WHERE idfuncionario = $1 AND idempresa = $2`,
     [idfuncionario, idempresa]
   )).rows[0] || {};
   const salario = Number(cadastro.salario) || 0;
@@ -2015,7 +2035,7 @@ async function prepararProgramacaoFerias(idempresa, body) {
     // Gozos que JÁ estão nesse recibo (mesmo mês) entram na conta junto com os novos.
     const jaNoRecibo = existente ? todosGozos.filter((x) => x.idholerite === existente.idholerite) : [];
     const diasGozo = r.gozos.reduce((s, g) => s + g.dias, 0) + jaNoRecibo.reduce((s, x) => s + (Number(x.dias) || 0), 0);
-    const itens = montarItensReciboFerias(salario, dependentes, await obterParametros(r.ano), diasGozo, r.abono || jaNoRecibo.some((x) => x.abono), perfilFunc);
+    const itens = montarItensReciboFerias(salario, dependentes, await obterParametros(r.ano), diasGozo, r.abono || jaNoRecibo.some((x) => x.abono), perfilFunc, cadastro.domestico === true);
     const inicioRecibo = [...r.gozos.map((g) => g.inicio), ...jaNoRecibo.map((x) => x.gozo_inicio)].sort()[0];
     recibos.push({
       ...r, idholerite: existente?.idholerite || null, itens,
