@@ -319,6 +319,11 @@ window.temPermissao = function (modulo, acao) {
       // (RH.js initRH()) — sem isso, clicar em DEVS com outro modo ativo não mostra nada,
       // porque o painel principal (onde as pílulas vivem) continua escondido atrás dele.
       document.body.classList.remove("rh-mode", "ceo-mode", "ti-mode", "almox-mode");
+      // Dois menus em pílulas (DEVS e Relatórios) dividem o mesmo painel: abrir um desliga o
+      // "pressionado" do outro, senão os dois ficavam vermelhos com só um conteúdo no painel.
+      document.querySelectorAll("#menu-horizontal li.ativo").forEach((outro) => {
+        if (outro !== li) outro.classList.remove("ativo");
+      });
       li.classList.add("ativo");
 
       const itens = Array.from(li.querySelectorAll(".abrir-modal"))
@@ -360,6 +365,9 @@ window.temPermissao = function (modulo, acao) {
   }
 
   configurarMenuPilulas("li.Devs", "DEVS");
+  // Relatórios: "Relatório de Fechamento" abre a tela cheia (Relatorios.html) e "Índices Aplicados"
+  // o modal de sempre -- ambos pela mesma pílula/abrirModal.
+  configurarMenuPilulas("li.Relatorios", "Relatórios");
 });
 
 // Seleciona o elemento pai (o <li> que tem a classe Financeiro)

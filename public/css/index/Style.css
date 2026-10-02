@@ -558,7 +558,9 @@ input#search-aside {
      Só DEVS por enquanto; os demais (.Financeiro etc.) continuam com o dropdown normal
      até o piloto ser validado. */
   .Devs .drop,
-  .Devs:hover .drop {
+  .Devs:hover .drop,
+  .Relatorios .drop,
+  .Relatorios:hover .drop {
     display: none !important;
   }
 
@@ -566,7 +568,8 @@ input#search-aside {
      convenção já usada em RH/CEO/TI/Almoxarifado (body.<modo>-mode #menu-horizontal
      li.<Item> a { color: #dc2e2e }), só que via classe .ativo no <li> em vez de uma
      classe no body (DEVS não é um modo de tela cheia). */
-  #menu-horizontal li.Devs.ativo > a {
+  #menu-horizontal li.Devs.ativo > a,
+  #menu-horizontal li.Relatorios.ativo > a {
     color: #dc2e2e;
   }
 
@@ -3471,6 +3474,27 @@ input#search-aside {
     background: var(--surface-2); border-left-color: var(--border-2); margin-left: 8px; cursor: help;
   }
   #rh-panel .rh-mes-chip.dias strong { color: var(--text-1); }
+  /* Ajuste manual de dias de VA/VT (folhadiasbeneficio): botão "todos", input por linha e etiqueta. */
+  #rh-panel .rh-btn-dias-todos {
+    margin-left: 8px; align-self: center; padding: 8px 16px; border-radius: 8px; cursor: pointer;
+    background: var(--primary-color); color: #fff; border: 1px solid var(--primary-color); font-weight: 600;
+  }
+  #rh-panel .rh-dias-cel { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
+  #rh-panel .rh-dias-input {
+    width: 56px; padding: 6px 8px; text-align: center; border: 1px solid var(--border-1);
+    border-radius: 6px; background: var(--surface-1); color: var(--text-1); font: inherit;
+  }
+  #rh-panel .rh-dias-input.alterado {
+    border-color: var(--status-alerta-fg); background: var(--status-alerta-bg); color: var(--status-alerta-fg); font-weight: 700;
+  }
+  #rh-panel .rh-dias-input:disabled { background: var(--surface-4); color: var(--text-3); cursor: not-allowed; }
+  #rh-panel .rh-dias-tag {
+    padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; cursor: help;
+    background: var(--status-alerta-bg); color: var(--status-alerta-fg);
+  }
+  #rh-panel .rh-dias-tag.todos { background: var(--status-roxo-bg); color: var(--status-roxo-fg); }
+  .rh-dias-hist { margin-top: 10px; text-align: left; font-size: 12px; color: var(--text-2); }
+  .rh-dias-hist div { padding: 5px 0; border-top: 1px solid var(--border-1); }
   #rh-panel .rh-mes-seta { color: var(--text-3); font-size: 22px; }
   /* Âncora da lista suspensa de funcionários; o campo em si herda o visual de
      .rh-campo-busca input (a pílula da toolbar). */

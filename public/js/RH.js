@@ -46,7 +46,7 @@ let parcela13 = "unica"; // unica | 1 | 2
 // informativos / pagos via cartão). Escolha de tela, não persiste.
 let incluirBeneficios = false;
 
-// Dias de benefício da competência (seg–sex, feriado não desconta — calculado no backend, ver
+// Dias de benefício da competência (seg–sex sem feriados de SP — calculado no backend, ver
 // contarDiasBeneficio em routes/rotaRH.js). Editável no holerite mensal: VA/VT = valor/dia
 // (cadastro do funcionário) × dias.
 let diasUteisSel = 0;
@@ -1723,13 +1723,16 @@ async function carregarFolha() {
     if (elComp && data.mesComp && data.anoComp) {
       elComp.style.display = "flex";
       // O chip de dias fecha a leitura da linha: salário é do mês trabalhado, VA/VT é do mês
-      // de vencimento e vale por este número de dias (seg–sex do mês, feriado não desconta).
+      // de vencimento e vale por este número de dias (seg–sex do mês, sem feriados de SP).
       // Cada linha ainda mostra os dias dela, que podem ser menos em caso de ajuste.
       elComp.innerHTML = competenciaHtml(mesSel, anoSel, data.mesComp, data.anoComp)
         + (data.diasUteis
-          ? `<div class="rh-mes-chip dias" title="Dias de segunda a sexta em ${MESES[mesSel - 1]}/${anoSel}; feriado não desconta. VA/VT = valor por dia (cadastro) × esses dias.">
-               <span>VA / VT pagos</span><strong>${data.diasUteis} dias</strong>
+          ? `<div class="rh-mes-chip dias" title="Dias de segunda a sexta em ${MESES[mesSel - 1]}/${anoSel}, descontados os feriados fixos e móveis de SP. VA/VT = valor por dia (cadastro) × esses dias.">
+               <span>VA / VT pagos${data.diasGeral !== null && data.diasGeral !== undefined ? " (ajustado)" : ""}</span><strong>${data.diasGeral ?? data.diasUteis} dias</strong>
              </div>`
+          : "")
+        + (data.diasUteis && podeAbrirDetalhe() && !data.antesDoInicio
+          ? `<button type="button" id="rh-btn-dias-todos" class="rh-btn-dias-todos">Alterar dias de todos</button>`
           : "");
     }
 
@@ -1799,6 +1802,33 @@ async function carregarFolha() {
       return `<td class="rh-col-num ${extraClasse}">${formatarReaisInput(valor)}${detalhe}</td>`;
     };
 
+    // Dias de VA/VT que a linha realmente paga (valor ÷ valor-dia; sem valor-dia cai no
+    // calendário) e o input de ajuste manual. Ajuste grava em folhadiasbeneficio com justificativa
+    // (ver ajustarDiasBeneficio). Benefício já conferido/pago trava: desfaça a conferência antes.
+    const diasDaLinha = (l) => {
+      if (l.diasBeneficio !== undefined && l.diasBeneficio !== null) return Number(l.diasBeneficio); // já resolvido pelo backend
+      const va = Number(valorItemBenef(l, "Vale-Alimentação")) || 0, vt = Number(valorItemBenef(l, "Vale-Transporte")) || 0;
+      if (Number(l.valealimDia) > 0) return Math.round(va / l.valealimDia);
+      if (Number(l.valetrnspDia) > 0) return Math.round(vt / l.valetrnspDia);
+      return Number(l.diasCalendario) || 0;
+    };
+    const celulaDias = (l) => {
+      const travado = !podeEditar || l.conferidoBeneficios || l.statusBeneficios === "Pago";
+      const ajustado = l.diasOrigem === "individual" || l.diasOrigem === "todos";
+      const tag = ajustado
+        ? `<span class="rh-dias-tag ${l.diasOrigem}" title="${escHtml(l.diasJustificativa || "")}">${l.diasOrigem === "todos" ? "todos" : "individual"}</span>`
+        : "";
+      const motivo = travado ? "Benefícios já conferidos/pagos — desfaça a conferência para alterar os dias." : "Dias de VA/VT (calendário: " + (l.diasCalendario ?? "-") + ")";
+      return `<td class="rh-col-num rh-col-dias">
+        <div class="rh-dias-cel">
+          <input type="number" min="0" max="31" step="1" class="rh-dias-input${ajustado ? " alterado" : ""}"
+                 value="${diasDaLinha(l)}" data-dias-de="${l.idfuncionario}" data-dias-atual="${diasDaLinha(l)}"
+                 data-dias-origem="${l.diasOrigem || "calendario"}" ${travado ? "disabled" : ""} title="${escHtml(motivo)}">
+          ${tag}
+        </div>
+      </td>`;
+    };
+
     elTab.innerHTML = `
       <table class="rh-folha-tab">
         <thead>
@@ -1816,6 +1846,7 @@ async function carregarFolha() {
             <th class="rh-col-conferencia">Confer. Salário</th>
             <th class="rh-col-num rh-grupo-benef">VA</th>
             <th class="rh-col-num">VT</th>
+            <th class="rh-col-num rh-col-dias">Dias VA/VT</th>
             <th class="rh-col-num">Total Benefícios</th>
             <th class="rh-col-conferencia">Confer. Benefícios</th>
           </tr>
@@ -1832,11 +1863,12 @@ async function carregarFolha() {
               <td class="rh-col-conferencia">${conferenciaCel(l, "sal")}</td>
               ${celulaBenef(l, "Vale-Alimentação", l.valealimDia, "rh-grupo-benef")}
               ${celulaBenef(l, "Vale-Transporte", l.valetrnspDia)}
+              ${celulaDias(l)}
               <td class="rh-col-num"><strong>${formatarReaisInput(l.beneficios)}</strong></td>
               <td class="rh-col-conferencia">${conferenciaCel(l, "benef")}</td>
             </tr>
             <tr class="rh-folha-detalhe" data-detalhe-de="${l.idfuncionario}" style="display:none;">
-              <td colspan="11">${montarDetalheLinha(l)}</td>
+              <td colspan="12">${montarDetalheLinha(l)}</td>
             </tr>`).join("")}
         </tbody>
       </table>
@@ -1919,9 +1951,15 @@ async function carregarFolha() {
     });
     // Trava extra na célula inteira (não só no botão/link): clicar na badge "✔ Conferido"
     // (que não tem ação própria) ou em qualquer espaço vazio da célula não pode abrir a linha.
-    elTab.querySelectorAll("td.rh-col-conferencia").forEach((td) => {
+    elTab.querySelectorAll("td.rh-col-conferencia, td.rh-col-dias").forEach((td) => {
       td.addEventListener("click", (e) => e.stopPropagation());
     });
+    // Ajuste de dias de VA/VT: muda o input e confirma (Enter/sair do campo) → pede justificativa.
+    elTab.querySelectorAll(".rh-dias-input").forEach((inp) => {
+      inp.addEventListener("change", () => ajustarDiasBeneficio(inp, linhas));
+    });
+    const btnTodos = document.getElementById("rh-btn-dias-todos");
+    if (btnTodos) btnTodos.onclick = () => ajustarDiasTodos(linhas, data.diasGeral ?? data.diasUteis);
 
     elTab.querySelectorAll("tr.rh-folha-linha").forEach((tr) => {
       if (podeEditar) {
@@ -2096,6 +2134,105 @@ async function conferirHolerite(chave, conferido) {
     console.error("Erro ao conferir holerite (RH):", err);
     Swal.fire({ icon: "error", title: "Erro", text: "Não foi possível registrar a conferência.", confirmButtonText: "Ok" });
   }
+}
+
+// ===== Ajuste manual de dias de VA/VT (tabela folhadiasbeneficio) =====
+// Sempre com justificativa obrigatória. Individual vale só pra aquele funcionário; "todos" vale
+// pra quem não tem ajuste individual e ainda não teve os benefícios conferidos.
+async function salvarDiasBeneficio(idfuncionario, dias, justificativa) {
+  await fetchComToken("/rh/dias-beneficio", {
+    method: "POST",
+    body: { mes: mesSel, ano: anoSel, idfuncionario, dias, justificativa },
+  });
+  const painel = document.getElementById("rh-panel");
+  const posPainel = painel ? painel.scrollTop : 0;
+  await carregarFolha();
+  requestAnimationFrame(() => { if (painel) painel.scrollTop = posPainel; });
+}
+
+function mensagemErroDias(err) {
+  // fetchComToken lança "Erro 409: {"error":"..."}" — mostra só o texto da API.
+  const m = String(err?.message || "").match(/\{.*\}/);
+  try { if (m) return JSON.parse(m[0]).error || "Não foi possível salvar o ajuste de dias."; } catch (_) {}
+  return "Não foi possível salvar o ajuste de dias.";
+}
+
+async function historicoDiasHtml(idfuncionario) {
+  try {
+    const qs = `mes=${mesSel}&ano=${anoSel}${idfuncionario ? `&idfuncionario=${idfuncionario}` : ""}`;
+    const { historico } = await fetchComToken(`/rh/dias-beneficio/historico?${qs}`);
+    if (!historico?.length) return "";
+    return `<div class="rh-dias-hist"><strong>Histórico</strong>${historico.map((h) =>
+      `<div>${new Date(h.criadoem).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })} — ${escHtml(h.usuario || "?")} — ${h.dias === null ? "ajuste removido" : h.dias + " dia(s)"} — "${escHtml(h.justificativa)}"</div>`
+    ).join("")}</div>`;
+  } catch (_) { return ""; }
+}
+
+async function ajustarDiasBeneficio(inp, linhas) {
+  const id = inp.dataset.diasDe;
+  const atual = Number(inp.dataset.diasAtual);
+  const novo = parseInt(inp.value, 10);
+  const linha = linhas.find((l) => String(l.idfuncionario) === String(id));
+  const volta = () => { inp.value = atual; };
+  if (Number.isNaN(novo) || novo < 0 || novo > 31) { volta(); return; }
+  if (novo === atual) return;
+  const individual = inp.dataset.diasOrigem === "individual";
+  const r = await Swal.fire({
+    title: `Alterar dias — ${escHtml(linha?.nome || "")}`,
+    html: `<p style="margin:0 0 10px;text-align:left">VA/VT de ${MESES[mesSel - 1]}/${anoSel}: <strong>${atual}</strong> → <strong>${novo}</strong> dia(s) (calendário: ${linha?.diasCalendario ?? "-"}).</p>
+           <textarea id="rh-dias-just" class="swal2-textarea" style="margin:0;width:100%" placeholder="Justificativa (obrigatória)"></textarea>
+           ${await historicoDiasHtml(id)}`,
+    showCancelButton: true, confirmButtonText: "Salvar", cancelButtonText: "Cancelar",
+    showDenyButton: individual, denyButtonText: "Remover ajuste",
+    focusConfirm: false,
+    preConfirm: () => {
+      const j = document.getElementById("rh-dias-just").value.trim();
+      if (j.length < 5) { Swal.showValidationMessage("Informe a justificativa (mín. 5 caracteres)."); return false; }
+      return j;
+    },
+  });
+  if (r.isDenied) {
+    const r2 = await Swal.fire({
+      title: "Remover ajuste", input: "textarea", inputPlaceholder: "Justificativa (obrigatória)",
+      showCancelButton: true, confirmButtonText: "Remover", cancelButtonText: "Cancelar",
+      inputValidator: (v) => (v || "").trim().length < 5 ? "Informe a justificativa (mín. 5 caracteres)." : null,
+    });
+    if (!r2.isConfirmed) { volta(); return; }
+    try { await salvarDiasBeneficio(id, null, r2.value.trim()); }
+    catch (err) { volta(); Swal.fire({ icon: "error", title: "Erro", text: mensagemErroDias(err) }); }
+    return;
+  }
+  if (!r.isConfirmed) { volta(); return; }
+  try { await salvarDiasBeneficio(id, novo, r.value); }
+  catch (err) { volta(); Swal.fire({ icon: "error", title: "Erro", text: mensagemErroDias(err) }); }
+}
+
+async function ajustarDiasTodos(linhas, diasAtual) {
+  const individuais = linhas.filter((l) => l.diasOrigem === "individual").length;
+  const conferidos = linhas.filter((l) => l.diasOrigem !== "individual" && (l.conferidoBeneficios || l.statusBeneficios === "Pago")).length;
+  const atualizados = linhas.length - individuais - conferidos;
+  const r = await Swal.fire({
+    title: "Alterar dias de todos",
+    html: `<p style="margin:0 0 10px;text-align:left">Vale para todos os funcionários de ${MESES[mesSel - 1]}/${anoSel} que <strong>não têm ajuste individual</strong>.</p>
+           <label style="display:block;text-align:left;font-size:12px">Novo nº de dias de VA/VT (hoje: ${diasAtual})</label>
+           <input id="rh-dias-todos-n" type="number" min="0" max="31" step="1" class="swal2-input" style="margin:4px 0 10px;width:100%" value="${diasAtual}">
+           <textarea id="rh-dias-just" class="swal2-textarea" style="margin:0;width:100%" placeholder="Justificativa (obrigatória)"></textarea>
+           <p style="margin:10px 0 0;text-align:left;font-size:12px">Serão atualizados <strong>${atualizados}</strong> funcionário(s).
+           ${individuais ? `${individuais} com ajuste individual ` : ""}${individuais && conferidos ? "e " : ""}${conferidos ? `${conferidos} com benefícios já conferidos ` : ""}${individuais || conferidos ? "não serão alterados." : ""}</p>
+           ${await historicoDiasHtml(null)}`,
+    showCancelButton: true, confirmButtonText: "Aplicar a todos", cancelButtonText: "Cancelar",
+    focusConfirm: false,
+    preConfirm: () => {
+      const n = parseInt(document.getElementById("rh-dias-todos-n").value, 10);
+      const j = document.getElementById("rh-dias-just").value.trim();
+      if (Number.isNaN(n) || n < 0 || n > 31) { Swal.showValidationMessage("Informe um número de dias entre 0 e 31."); return false; }
+      if (j.length < 5) { Swal.showValidationMessage("Informe a justificativa (mín. 5 caracteres)."); return false; }
+      return { n, j };
+    },
+  });
+  if (!r.isConfirmed) return;
+  try { await salvarDiasBeneficio(null, r.value.n, r.value.j); }
+  catch (err) { Swal.fire({ icon: "error", title: "Erro", text: mensagemErroDias(err) }); }
 }
 
 // Seleciona um funcionário a partir da tabela da folha e abre o holerite dele.
