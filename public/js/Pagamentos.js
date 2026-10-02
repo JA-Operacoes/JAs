@@ -458,32 +458,18 @@ const svgLixeiraAnexo = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 44
     <path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64s14.3 32 32 32H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"/>
 </svg>`;
 
-// Só master|supremo|dev enxergam a área de anexos (imagem da conta/boleto e comprovante).
-function podeVerAnexosPagamento() {
-    return typeof temPermissao === "function" ? temPermissao("Pagamentos", "supremo") : false;
-}
-
-// Mostra/esconde a área de anexos conforme:
-// - permissão (master|supremo|dev) — sem ela, fica sempre escondida;
-// - Imagem da Conta/Boleto não depende de o pagamento estar confirmado — a conta pode
-//   chegar antes de ser paga, então esse upload fica sempre disponível.
-// - só o Comprovante de Pagamento fica travado até o checkbox "Pagamento Confirmado"
-//   estar marcado (não faz sentido comprovante de algo ainda não pago).
+// Qualquer usuário com acesso ao módulo enxerga a área de anexos (imagem da conta/boleto
+// e comprovante). Só a remoção do anexo é restrita (Supremo/Master/Devs).
+// Imagem da Conta e Comprovante ficam sempre disponíveis: quem não é Supremo não consegue
+// marcar "Pagamento Confirmado", então travar o comprovante nele o esconderia para sempre.
 function atualizarVisibilidadeAnexos() {
     const pdfContainer = document.querySelector(".pdf");
     if (!pdfContainer) return;
 
     const colunaComprovante = document.getElementById("colunaComprovante");
-    const confirmado = document.querySelector("#statusPagto")?.checked;
-
-    if (!podeVerAnexosPagamento()) {
-        pdfContainer.style.display = "none";
-        return;
-    }
 
     pdfContainer.style.display = "flex";
-
-    if (colunaComprovante) colunaComprovante.style.display = confirmado ? "" : "none";
+    if (colunaComprovante) colunaComprovante.style.display = "";
 }
 
 function carregarAnexosExistentes(p) {
