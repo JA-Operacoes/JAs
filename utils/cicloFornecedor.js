@@ -92,7 +92,8 @@ async function buscarLinhasVinculadas(db, idempresa, idfornecedor = null) {
              GROUP BY o.idevento
          )
          SELECT se.idstaffevento, se.idfornecedor, se.idfuncionario, se.nmfuncionario, se.nmfuncao,
-                se.idevento, se.nmevento, se.statusstaff, se.statuspgto, se.statuspgtoajdcto,
+                se.idevento, se.nmevento, se.idcliente, se.nmcliente,
+                se.statusstaff, se.statuspgto, se.statuspgtoajdcto,
                 se.comppgtocache, se.comppgtoajdcusto, se.compnotafiscal,
                 GREATEST(COALESCE(se.vlrtotcache, 0), 0)::float AS vlrcache,
                 GREATEST(COALESCE(se.vlrtotajdcusto, 0), 0)::float AS vlrajuda,
@@ -156,6 +157,10 @@ async function carregarCiclosFornecedor(idempresa, { ano = null, idfornecedor = 
             funcao: l.nmfuncao,
             idevento: l.idevento,
             nmevento: l.nmevento,
+            // Cliente do staff: o Relatório de Empreiteiras filtra por evento/cliente e um evento
+            // pode ter mais de um cliente.
+            idcliente: l.idcliente,
+            nmcliente: l.nmcliente,
             qtddiarias: Number(l.qtddiarias) || 0,
             dtini: l.dtini,
             dtfim: l.dtfim,
@@ -208,7 +213,8 @@ async function carregarCiclosFornecedor(idempresa, { ano = null, idfornecedor = 
     const idsFuncionarios = [...new Set(linhas.map((l) => l.idfuncionario))];
     const { rows: ajustes } = await db.query(
         `SELECT a.idajustefinanceiro, a.idfuncionario, a.tipo, a.valor::float AS valor, a.status,
-                a.justificativa, a.idstaffeventopago, a.comprovante, seOrigem.nmevento AS nmevento_origem
+                a.justificativa, a.idstaffeventopago, a.comprovante, seOrigem.nmevento AS nmevento_origem,
+                seOrigem.idevento AS idevento_origem, seOrigem.idcliente AS idcliente_origem
            FROM staffajustefinanceiro a
            LEFT JOIN staffeventos seOrigem ON seOrigem.idstaffevento = a.idstaffeventoorigem
           WHERE a.idempresa = $1 AND a.idfuncionario = ANY($2) AND a.status IN ('Pendente', 'Pago')`,

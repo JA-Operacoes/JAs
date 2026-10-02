@@ -1,274 +1,134 @@
-<!-- HTML DO RELATORIO AJDCUSTO/CACHE -->
+<!-- HTML DO RELATORIO DE FECHAMENTO DE STAFF (tela cheia, aberta pela pílula do menu Relatórios) -->
 <link rel="stylesheet" href="css/Modal/Relatorios.css">
 <link rel="stylesheet" href= "css/Roots/Roots.css">
 
-<div id="Relatorios" class="modal">
+<div id="Relatorios" class="modal rel-tela rel-embutida">
   <div class="modal-content">
-    <div class="Close"><button class="close" id="Fechar"> X </button></div>
-  <div id ="form-cargo"> 
-    <div class="title">
-      <h1>Gerador de Relatórios de Fechamento</h1>
+    <div class="rel-topo">
+      <div>
+        <h2>Relatórios — Fechamento de Staff</h2>
+        <small id="relEmpresaNome"></small>
+      </div>
+      <div class="Close"><button id="btnRecolher" class="rel-btn" type="button">⤡ Recolher</button><button class="close" id="Fechar" type="button">Fechar ✕</button></div>
     </div>
-    <div class="controls">
-      <div class="opcoesRelatorios">
-        <fieldset>
-      <legend>Tipo de Relatório</legend>
-      <br>
-      <div class="tpRelatorio">
-        <div class="coluna">
-          <div class="checkbox-wrapper-33" id="opcaoOperacional">
-            <label class="checkbox">
-              <input class="checkbox__trigger visuallyhidden" type="radio" id="operacionalRadio" name="reportType" value="operacional" />
-              <span class="checkbox__symbol">
-                <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M4 14l8 7L24 7"></path>
-                </svg>
-              </span>
-              <p class="checkbox__textwrapper">Funcionarios</p>
-            </label>
-          </div>
 
-          <div id="opcoesFinanceiro">
-            <div class="checkbox-wrapper-33">
-              <label class="checkbox">
-                <input class="checkbox__trigger visuallyhidden" type="radio" id="ajudaCustoRadio" name="reportType" value="ajuda_custo" checked />
-                <span class="checkbox__symbol">
-                  <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M4 14l8 7L24 7"></path>
-                  </svg>
-                </span>
-                <p class="checkbox__textwrapper">Ajuda de Custo</p>
-              </label>
-            </div>
-
-            <div class="checkbox-wrapper-33">
-              <label class="checkbox">
-                <input class="checkbox__trigger visuallyhidden" type="radio" id="cacheRadio" name="reportType" value="cache" />
-                <span class="checkbox__symbol">
-                  <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M4 14l8 7L24 7"></path>
-                  </svg>
-                </span>
-                <p class="checkbox__textwrapper">Cachê</p>
-              </label>
-            </div>
-
-            <div class="checkbox-wrapper-33">
-              <label class="checkbox">
-                <input class="checkbox__trigger visuallyhidden" type="radio" id="cacheAjudaRadio" name="reportType" value="cache_ajuda" />
-                <span class="checkbox__symbol">
-                  <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M4 14l8 7L24 7"></path>
-                  </svg>
-                </span>
-                <p class="checkbox__textwrapper">Cachê + Ajuda de Custo </p>
-              </label>
-            </div>
-
-            <div class="checkbox-wrapper-33">
-              <label class="checkbox">
-                <input class="checkbox__trigger visuallyhidden" type="radio" id="empreiteirasRadio" name="reportType" value="empreiteiras" />
-                <span class="checkbox__symbol">
-                  <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M4 14l8 7L24 7"></path>
-                  </svg>
-                </span>
-                <p class="checkbox__textwrapper">Pagamentos a Empreiteiras</p>
-              </label>
-            </div>
-          </div> </div>
-      </div>
-      <br>
-</fieldset>
-
-        <fieldset id="fsFasesEvento">
-          <legend>Filtrar por Fase Específica do Evento:</legend>
-          <br>
-          <div class="tpRelatorio">
-            <div class="titulo">
-              <!-- <label>Selecione Datas específicas ou Nenhuma para Todos:</label> -->
-            </div>
-            <div class="gridopt">
-              <div class="coluna">
-                <div class="checkbox-wrapper-33">
-                  <label class="checkbox">
-                    <input class="checkbox__trigger visuallyhidden" type="checkbox" id="checkMontagemInfra" value="montageminfra" name="phaseFilter"/>
-                    <span class="checkbox__symbol">
-                      <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M4 14l8 7L24 7"></path>
-                      </svg>
-                    </span>
-                    <p class="checkbox__textwrapper">Montagem Infra</p>
-                  </label>
-                </div>
-                <div class="checkbox-wrapper-33">
-                  <label class="checkbox">
-                    <input class="checkbox__trigger visuallyhidden" type="checkbox" id="checkMontagem" value="montagem" name="phaseFilter"/>
-                    <span class="checkbox__symbol">
-                      <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M4 14l8 7L24 7"></path>
-                      </svg>
-                    </span>
-                    <p class="checkbox__textwrapper">Montagem</p>
-                  </label>
-                </div>
-              </div>
-              <div class="coluna">
-                <div class="checkbox-wrapper-33">
-                  <label class="checkbox">
-                    <input class="checkbox__trigger visuallyhidden" type="checkbox" id="checkMarcacao" value="marcacao" name="phaseFilter"/>
-                    <span class="checkbox__symbol">
-                      <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M4 14l8 7L24 7"></path>
-                      </svg>
-                    </span>
-                    <p class="checkbox__textwrapper">Marcação</p>
-                  </label>
-                </div>
-                <div class="checkbox-wrapper-33">
-                  <label class="checkbox">
-                    <input class="checkbox__trigger visuallyhidden" type="checkbox" id="checkDesmontagem" value="desmontagem" name="phaseFilter"/>
-                    <span class="checkbox__symbol">
-                      <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M4 14l8 7L24 7"></path>
-                      </svg>
-                    </span>
-                    <p class="checkbox__textwrapper">Desmontagem</p>
-                  </label>
-                </div>
-              </div>
-              <div class="coluna">
-                <div class="checkbox-wrapper-33">
-                  <label class="checkbox">
-                    <input class="checkbox__trigger visuallyhidden" type="checkbox" id="checkRealizacao" value="realizacao" name="phaseFilter"/>
-                    <span class="checkbox__symbol">
-                      <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M4 14l8 7L24 7"></path>
-                      </svg>
-                    </span>
-                    <p class="checkbox__textwrapper">Realização</p>
-                  </label>
-                </div>
-                <div class="checkbox-wrapper-33">
-                  <label class="checkbox">
-                    <input class="checkbox__trigger visuallyhidden" type="checkbox" id="checkDesmontagemInfra" value="desmontagemInfra" name="phaseFilter" />
-                    <span class="checkbox__symbol">
-                      <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M4 14l8 7L24 7"></path>
-                      </svg>
-                    </span>
-                    <p class="checkbox__textwrapper">Desmontagem Infra</p>
-                  </label>
-                </div>
-              </div>
-            </div>
-          </div>
-          <br>
-        </fieldset>
-          
-        <fieldset id="fsOpcoesPagamento">
-          <legend>Opções:</legend>
-          <br>
-          <div class="tpRelatorio">
-            <div class="titulo">
-              <!-- <label>Opções:</label> -->
-            </div>
-            <div class="coluna">
-              <div class="checkbox-wrapper-33">
-                <label class="checkbox">
-                  <input class="checkbox__trigger visuallyhidden" type="checkbox" id="checkPendentes" name="reportType" value="pendentes" />
-                  <span class="checkbox__symbol">
-                    <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M4 14l8 7L24 7"></path>
-                    </svg>
-                  </span>
-                  <p class="checkbox__textwrapper">Pendentes</p>
-                </label>
-              </div>
-              <!-- <label><input type="radio" id="ajudaCustoRadio" name="reportType" value="ajuda_custo" checked>Ajuda de Custo</label> -->
-          
-              <div class="checkbox-wrapper-33">
-                <label class="checkbox">
-                  <input class="checkbox__trigger visuallyhidden" type="checkbox" id="checkPagos" name="reportType" value="pagos" />
-                  <span class="checkbox__symbol">
-                    <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M4 14l8 7L24 7"></path>
-                    </svg>
-                  </span>
-                  <p class="checkbox__textwrapper">Pagos</p>
-                </label>
-              </div>
-              <!-- <label><input type="radio" id="cacheRadio" name="reportType" value="cache">Cachê</label> -->
-            </div>
-          </div>
-          <br>
-        </fieldset>          
-      </div>
-        
-      
-      <div class="filtros">
-        <div class="init">
-          <label for="reportStartDate">Data de Início:</label>
-          <input type="date" id="reportStartDate" required>
+    <div class="rel-barra" id="form-cargo">
+      <!-- Tipo de relatório. Os ids/valores dos radios são usados em Relatorios.js. -->
+      <div class="rel-linha">
+        <span class="rel-rot">Tipo</span>
+        <div class="rel-chips" id="opcaoOperacional">
+          <label class="rel-chip">
+            <input type="radio" id="operacionalRadio" name="reportType" value="operacional" />
+            <span>Funcionários</span>
+          </label>
         </div>
-      
-        <div class="end">
-          <label for="reportEndDate">Data de Término:</label>
-          <input type="date" id="reportEndDate" required>
+        <div class="rel-chips" id="opcoesFinanceiro">
+          <label class="rel-chip">
+            <input type="radio" id="ajudaCustoRadio" name="reportType" value="ajuda_custo" checked />
+            <span>Ajuda de Custo</span>
+          </label>
+          <label class="rel-chip">
+            <input type="radio" id="cacheRadio" name="reportType" value="cache" />
+            <span>Cachê</span>
+          </label>
+          <label class="rel-chip">
+            <input type="radio" id="cacheAjudaRadio" name="reportType" value="cache_ajuda" />
+            <span>Cachê + Ajuda de Custo</span>
+          </label>
+          <label class="rel-chip">
+            <input type="radio" id="empreiteirasRadio" name="reportType" value="empreiteiras" />
+            <span>Pagamentos Empreiteira / Lote Funcionários</span>
+          </label>
         </div>
+      </div>
 
-      
+      <div class="rel-linha">
+        <span class="rel-rot">Período</span>
+        <input type="date" id="reportStartDate" class="rel-campo" aria-label="Data de início" required>
+        <input type="date" id="reportEndDate" class="rel-campo" aria-label="Data de término" required>
+
         <div class="Eventos">
-          <label for="eventSelect">Evento:</label>
-          <select id="eventSelect">
+          <select id="eventSelect" class="rel-campo" aria-label="Evento">
             <option value="">Selecione um Evento</option>
           </select>
         </div>
-      
         <div class="Clientes">
-          <label for="clientSelect">Cliente:</label>
-          <select id="clientSelect">
+          <select id="clientSelect" class="rel-campo" aria-label="Cliente">
             <option value="">Selecione um Cliente</option>
           </select>
         </div>
-
         <div class="Equipes">
-          <label for="equipeSelect">Equipe:</label>
-          <select id="equipeSelect">
+          <select id="equipeSelect" class="rel-campo" aria-label="Equipe">
             <option value="">Selecione uma Equipe</option>
           </select>
         </div>
 
-        <!-- Pagamentos a Empreiteiras: filtros próprios (o período é a data do pagamento/ciclo) -->
-        <div class="filtrosEmpreiteira" style="display: none;">
-          <label for="empreiteiraSelect">Empreiteira:</label>
-          <select id="empreiteiraSelect">
-            <option value="">Todas</option>
+        <!-- Empreiteira / Lote de Funcionários: filtra o Fechamento (quem é pago via lote) e,
+             no tipo "Pagamentos Empreiteira / Lote Funcionários", escolhe o fornecedor. -->
+        <div class="filtrosEmpreiteira" id="filtroLote" style="display: none;">
+          <select id="empreiteiraSelect" class="rel-campo" aria-label="Empreiteira / Lote de Funcionários">
+            <option value="">Empreiteira / Lote: todos</option>
+            <option value="__sem" id="optSemEmpreiteira">Sem empreiteira (staff direto)</option>
           </select>
         </div>
-        <div class="filtrosEmpreiteira" style="display: none;">
-          <label for="situacaoEmpreiteiraSelect">Situação:</label>
-          <select id="situacaoEmpreiteiraSelect">
-            <option value="todas">Todas</option>
+        <div class="filtrosEmpreiteira" id="filtroSituacaoEmp" style="display: none;">
+          <select id="situacaoEmpreiteiraSelect" class="rel-campo" aria-label="Situação do pagamento">
+            <option value="todas">Situação: todas</option>
             <option value="pago">Pagos</option>
             <option value="aberto">Em aberto</option>
           </select>
         </div>
       </div>
+
+      <div class="rel-linha" id="fsFasesEvento">
+        <span class="rel-rot">Fase</span>
+        <label class="rel-chip rel-chip-pq"><input type="checkbox" id="checkMontagemInfra" value="montageminfra" name="phaseFilter"/><span>Montagem Infra</span></label>
+        <label class="rel-chip rel-chip-pq"><input type="checkbox" id="checkMontagem" value="montagem" name="phaseFilter"/><span>Montagem</span></label>
+        <label class="rel-chip rel-chip-pq"><input type="checkbox" id="checkMarcacao" value="marcacao" name="phaseFilter"/><span>Marcação</span></label>
+        <label class="rel-chip rel-chip-pq"><input type="checkbox" id="checkRealizacao" value="realizacao" name="phaseFilter"/><span>Realização</span></label>
+        <label class="rel-chip rel-chip-pq"><input type="checkbox" id="checkDesmontagem" value="desmontagem" name="phaseFilter"/><span>Desmontagem</span></label>
+        <label class="rel-chip rel-chip-pq"><input type="checkbox" id="checkDesmontagemInfra" value="desmontagemInfra" name="phaseFilter"/><span>Desmontagem Infra</span></label>
+        <span class="rel-rot" id="fsOpcoesPagamento-rot">Situação</span>
+        <span id="fsOpcoesPagamento" class="rel-chips">
+          <label class="rel-chip rel-chip-pq"><input type="checkbox" id="checkPendentes" name="statusPgto" value="pendentes" /><span>Pendentes</span></label>
+          <label class="rel-chip rel-chip-pq"><input type="checkbox" id="checkPagos" name="statusPgto" value="pagos" /><span>Pagos</span></label>
+        </span>
+      </div>
+
+      <div class="rel-linha rel-linha-acoes">
+        <div class="rel-chips">
+          <button id="gerarRelatorioBtn" class="rel-btn rel-btn-prim" type="button">Gerar relatório</button>
+        </div>
+        <div class="rel-chips">
+          <button id="btnExpandir" class="rel-btn" type="button">⤢ Tela cheia</button>
+          <button style="display: none;" id="printButton" class="rel-btn" type="button">🖨 Imprimir</button>
+          <button style="display: none;" id="xlsButton" class="rel-btn" type="button">⬇ Excel (XLS)</button>
+          <button id="btnFecharAcao" class="rel-btn rel-fechar-acao" type="button">Fechar ✕</button>
+        </div>
+      </div>
     </div>
 
-    <div class="BTNs">
-      
-      <button id="gerarRelatorioBtn">Gerar Relatório</button>
-      <button style="display: none;" id="printButton">Imprimir</button>
+    <!-- Colunas do relatório: desmarcada = continua na tela esmaecida, mas não sai na impressão
+         nem no Excel. A escolha é salva por usuário e tipo de relatório (relatoriopreferencias). -->
+    <div class="rel-colunas" id="colunasBox" style="display: none;">
+      <div class="rel-colunas-topo">
+        <strong>Colunas do relatório</strong>
+        <span>
+          <small>Desmarcada = continua na tela esmaecida, mas não sai na impressão nem no Excel. Salvo no seu usuário, por tipo de relatório.</small>
+          <button type="button" class="rel-link" id="btnMostrarTodasColunas">Mostrar todas</button>
+          <button type="button" class="rel-chip-btn" id="btnPreviaImpressao" aria-pressed="false">Ver como vai imprimir</button>
+        </span>
+      </div>
+      <div class="rel-colunas-lista" id="listaColunas"></div>
     </div>
 
-    <div id="reportOutput">
-  </div>
- 
+    <div id="avisoRelatorio" class="rel-aviso" style="display: none;"></div>
 
+    <!-- Fechamento de Staff: renderizado num iframe, com o mesmo CSS da impressão, para a tela
+         ser idêntica ao papel. Pagamentos de empreiteira renderizam direto em #reportOutput. -->
+    <iframe id="previewRelatorio" title="Relatório de Fechamento de Staff" class="rel-preview" style="display: none;"></iframe>
+    <div id="reportOutput"></div>
   </div>
-</div>
 </div>
 <iframe id="printIframe" style="display:none;"></iframe>
 
