@@ -754,6 +754,11 @@ ${h.tipo === "ferias" && !h.idholerite ? `
         <button type="button" id="rh-programar-ferias" class="secundario" title="Programar férias deste funcionário (gera o recibo de férias)"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;">beach_access</span> Programar férias</button>
         <button type="button" id="rh-salvar">Salvar holerite</button>
         ${ehMasterRH() ? `<button type="button" id="rh-pagar" class="${pago ? "secundario" : ""}">${pago ? "Reverter p/ Pendente" : "Marcar como pago"}</button>` : ""}
+        ${!h.imagemcontabil ? `
+        <button type="button" id="rh-contabil" class="secundario" title="Anexar o holerite emitido pela contabilidade (salário, férias, rescisão, 13º)"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;">upload_file</span> ADD Holerite Contabilidade</button>
+        <input type="file" id="rh-contabil-input" accept="image/*,application/pdf,.jfif" style="display:none">` : `
+        <button type="button" id="rh-contabil-ver" class="secundario"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;">description</span> Ver Holerite Contabilidade</button>
+        ${podeAlterarComprovante ? `<button type="button" id="rh-contabil-rm" class="secundario">Remover Holerite Contabilidade</button>` : ""}`}
         ${pago ? (!h.comprovante ? `
         <button type="button" id="rh-comprovante">
             <svg aria-hidden="true" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" >
@@ -855,6 +860,23 @@ ${h.tipo === "ferias" && !h.idholerite ? `
   if (btnCompRm) btnCompRm.addEventListener("click", removerComprovante);
   const btnImprimir = document.getElementById("rh-imprimir");
   if (btnImprimir) btnImprimir.addEventListener("click", imprimirHolerite);
+
+  // Holerite emitido pela contabilidade (imagem/PDF/JFIF).
+  const btnContabil = document.getElementById("rh-contabil");
+  const inpContabil = document.getElementById("rh-contabil-input");
+  if (btnContabil && inpContabil) {
+    btnContabil.addEventListener("click", () => inpContabil.click());
+    inpContabil.addEventListener("change", (e) => {
+      const arq = e.target.files && e.target.files[0];
+      if (arq) enviarImagemContabil(arq);
+      e.target.value = "";
+    });
+  }
+  document.getElementById("rh-contabil-ver")?.addEventListener("click", () => {
+    if (holeriteAtual.imagemcontabil)
+      window.open(`/uploads/rh/contabilidade/${holeriteAtual.imagemcontabil}`, "_blank", "noopener");
+  });
+  document.getElementById("rh-contabil-rm")?.addEventListener("click", removerImagemContabil);
 
   atualizarPercentuaisImpostos(lerHolerite());
 }
@@ -1610,6 +1632,46 @@ async function enviarComprovante(arquivo) {
   } catch (err) {
     console.error("Erro ao enviar comprovante (RH):", err);
     Swal.fire({ icon: "error", title: "Erro", text: "Não foi possível anexar o comprovante.", confirmButtonText: "Ok" });
+  }
+}
+
+// Envia o holerite da contabilidade (imagem/PDF/JFIF) do holerite atual.
+async function enviarImagemContabil(arquivo) {
+  if (!holeriteAtual.idholerite) {
+    await salvarHolerite(true);
+    if (!holeriteAtual || !holeriteAtual.idholerite) return;
+  }
+  try {
+    const fd = new FormData();
+    fd.append("imagemcontabil", arquivo);
+    const r = await fetchComToken(`/rh/holerite/${holeriteAtual.idholerite}/imagem-contabil`, {
+      method: "POST",
+      body: fd,
+    });
+    if (!r || !r.ok) throw new Error((r && r.error) || "Falha no envio.");
+    await carregarHolerite(holeriteAtual.idfuncionario);
+    Swal.fire({ icon: "success", title: "Holerite da contabilidade anexado", timer: 1600, showConfirmButton: false });
+  } catch (err) {
+    console.error("Erro ao enviar holerite da contabilidade (RH):", err);
+    Swal.fire({ icon: "error", title: "Erro", text: "Não foi possível anexar o arquivo.", confirmButtonText: "Ok" });
+  }
+}
+
+async function removerImagemContabil() {
+  if (!holeriteAtual.idholerite) return;
+  const conf = await Swal.fire({
+    icon: "warning", title: "Remover holerite da contabilidade?", showCancelButton: true,
+    confirmButtonText: "Remover", cancelButtonText: "Cancelar",
+  });
+  if (!conf.isConfirmed) return;
+  try {
+    const r = await fetchComToken(`/rh/holerite/${holeriteAtual.idholerite}/imagem-contabil`, { method: "DELETE" });
+    if (!r || !r.ok) throw new Error((r && r.error) || "Falha ao remover.");
+    await carregarHolerite(holeriteAtual.idfuncionario);
+    Swal.fire({ icon: "success", title: "Arquivo removido", timer: 1600, showConfirmButton: false });
+  } catch (err) {
+    console.error("Erro ao remover holerite da contabilidade (RH):", err);
+    Swal.fire({ icon: "error", title: "Erro", text: "Não foi possível remover o arquivo.", confirmButtonText: "Ok" });
   }
 }
 

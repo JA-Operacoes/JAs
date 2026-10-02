@@ -85,6 +85,35 @@ const uploadComprovanteRH = multer({
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
 }).single("comprovante");
 
+// ===== Upload da imagem da contabilidade (imagem / PDF / JFIF) =====
+// Holerite emitido pela contabilidade (salário, férias, rescisão, 13º...). Um arquivo por
+// holerite, em folhaholerite.imagemcontabil; fica em uploads/rh/contabilidade.
+// Mesmas regras de formato/tamanho do comprovante.
+const dirImagemContabilRH = path.join(__dirname, "../uploads/rh/contabilidade");
+fs.mkdirSync(dirImagemContabilRH, { recursive: true });
+
+const storageImagemContabilRH = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, dirImagemContabilRH),
+  filename: (req, file, cb) => {
+    const id = req.params.id || "0";
+    const nomeLimpo = path.parse(file.originalname).name
+      .replace(/\s+/g, "")
+      .replace(/[^a-zA-Z0-9]/g, "");
+    const ext = path.extname(file.originalname).toLowerCase();
+    const agora = new Date();
+    const p2 = n => String(n).padStart(2, "0");
+    const dataHoje = `${agora.getFullYear()}${p2(agora.getMonth() + 1)}${p2(agora.getDate())}`;
+    const horaAgora = `${p2(agora.getHours())}${p2(agora.getMinutes())}${p2(agora.getSeconds())}`;
+    cb(null, `imagemcontabil-ID${id}-${dataHoje}-${horaAgora}-${nomeLimpo}${ext}`);
+  },
+});
+
+const uploadImagemContabilRH = multer({
+  storage: storageImagemContabilRH,
+  fileFilter: fileFilterComprovanteRH,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+}).single("imagemcontabil");
+
 // Perfis considerados "salário fixo" (entram na folha).
 const PERFIS_FOLHA = ["Interno", "InternoH", "ExternoH"];
 
@@ -999,7 +1028,7 @@ router.get("/holerite", async (req, res) => {
         holerite: {
           idholerite: null, idfuncionario, nome: funcionario.nome, mes, ano, tipo,
           salariobase, ...dadosFunc,
-          status: "Pendente", dtpagamento: null, obs: null, comprovante: null,
+          status: "Pendente", dtpagamento: null, obs: null, comprovante: null, imagemcontabil: null,
           itens: itensRascunho, ...calcularTotais(salariobase, itensRascunho, tipo),
           proventosParte: tipo === "mensal" && await ehMasterOuSupremo(req)
             ? await listarProventosParte(idempresa, { idfuncionario, mes, ano }) : [],
@@ -1065,6 +1094,7 @@ router.get("/holerite", async (req, res) => {
         mes: h.mes, ano: h.ano, tipo: h.tipo || "mensal", salariobase,
         ...dadosFunc,
         status: h.status, dtpagamento: h.dtpagamento, obs: h.obs, comprovante: h.comprovante || null,
+        imagemcontabil: h.imagemcontabil || null,
         itens, ...calcularTotais(salariobase, itens, h.tipo),
         // Só Master/Supremo recebem — pro RH o holerite chega sem nenhum sinal deles.
         proventosParte: (h.tipo || "mensal") === "mensal" && await ehMasterOuSupremo(req)
@@ -1478,6 +1508,81 @@ router.delete("/holerite/:id/comprovante", exigirFlag("master", "devs"), async (
     res.json({ ok: true });
   } catch (error) {
     console.error("ERRO RH DELETE /holerite/:id/comprovante:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /rh/holerite/:id/imagem-contabil — anexa o holerite emitido pela contabilidade.
+// multipart/form-data, campo "imagemcontabil" (imagem/PDF/JFIF, até 10MB). Trocar um já
+// anexado é restrito a master/dev (mesma regra do comprovante).
+router.post("/holerite/:id/imagem-contabil", (req, res) => {
+  uploadImagemContabilRH(req, res, async (err) => {
+    if (err) {
+      const mensagem = err.code === "LIMIT_FILE_SIZE" ? "Arquivo maior que 10 MB. Envie um arquivo menor." : err.message;
+      return res.status(400).json({ error: mensagem });
+    }
+    try {
+      const idempresa = req.idempresa;
+      const idholerite = parseInt(req.params.id, 10);
+      if (!idempresa) return res.status(400).json({ error: "idempresa obrigatório." });
+      if (!idholerite) return res.status(400).json({ error: "idholerite obrigatório." });
+      if (!req.file) return res.status(400).json({ error: "Nenhum arquivo enviado." });
+
+      const atual = await pool.query(
+        `SELECT imagemcontabil FROM folhaholerite WHERE idholerite = $1 AND idempresa = $2`,
+        [idholerite, idempresa]
+      );
+      if (atual.rowCount === 0) {
+        fs.unlink(path.join(dirImagemContabilRH, req.file.filename), () => {});
+        return res.status(404).json({ error: "Holerite não encontrado nesta empresa." });
+      }
+
+      if (atual.rows[0].imagemcontabil && !(await podeAlterarComprovante(req.usuario?.idusuario, idempresa))) {
+        fs.unlink(path.join(dirImagemContabilRH, req.file.filename), () => {});
+        return res.status(403).json({ error: "Apenas master/dev pode trocar um arquivo já anexado." });
+      }
+
+      await pool.query(
+        `UPDATE folhaholerite SET imagemcontabil = $1 WHERE idholerite = $2 AND idempresa = $3`,
+        [req.file.filename, idholerite, idempresa]
+      );
+
+      const antigo = atual.rows[0].imagemcontabil;
+      if (antigo && antigo !== req.file.filename) {
+        fs.unlink(path.join(dirImagemContabilRH, antigo), () => {});
+      }
+
+      res.json({ ok: true, imagemcontabil: req.file.filename, url: `/uploads/rh/contabilidade/${req.file.filename}` });
+    } catch (error) {
+      console.error("ERRO RH POST /holerite/:id/imagem-contabil:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+});
+
+// DELETE /rh/holerite/:id/imagem-contabil — remove o arquivo da contabilidade (só master/dev).
+router.delete("/holerite/:id/imagem-contabil", exigirFlag("master", "devs"), async (req, res) => {
+  try {
+    const idempresa = req.idempresa;
+    const idholerite = parseInt(req.params.id, 10);
+    if (!idempresa) return res.status(400).json({ error: "idempresa obrigatório." });
+    if (!idholerite) return res.status(400).json({ error: "idholerite obrigatório." });
+
+    const atual = await pool.query(
+      `SELECT imagemcontabil FROM folhaholerite WHERE idholerite = $1 AND idempresa = $2`,
+      [idholerite, idempresa]
+    );
+    if (atual.rowCount === 0) return res.status(404).json({ error: "Holerite não encontrado nesta empresa." });
+
+    await pool.query(
+      `UPDATE folhaholerite SET imagemcontabil = NULL WHERE idholerite = $1 AND idempresa = $2`,
+      [idholerite, idempresa]
+    );
+    const antigo = atual.rows[0].imagemcontabil;
+    if (antigo) fs.unlink(path.join(dirImagemContabilRH, antigo), () => {});
+    res.json({ ok: true });
+  } catch (error) {
+    console.error("ERRO RH DELETE /holerite/:id/imagem-contabil:", error);
     res.status(500).json({ error: error.message });
   }
 });
