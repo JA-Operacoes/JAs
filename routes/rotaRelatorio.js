@@ -55,11 +55,24 @@ router.get("/", autenticarToken(), contextoEmpresa,
                 ? `('Ativo', 'Pendente')`
                 : `('Ativo')`;
 
+            // Filtro Empreiteira / Lote de Funcionários: um idfornecedor, '__sem' (staff direto, sem
+            // empreiteira) ou vazio (todos). Entra no SQL já validado como inteiro em vez de virar $7
+            // porque as outras consultas (utilização de diárias etc.) recebem este mesmo `params` e o
+            // pg recusa parâmetro a mais do que o statement usa.
+            const fornecedorFiltro = String(req.query.fornecedor || '').trim();
+            let sqlFornecedor = '';
+            if (fornecedorFiltro === '__sem') {
+                sqlFornecedor = ' AND tse.idfornecedor IS NULL';
+            } else if (/^\d+$/.test(fornecedorFiltro)) {
+                sqlFornecedor = ` AND tse.idfornecedor = ${parseInt(fornecedorFiltro, 10)}`;
+            }
+
             const sqlFiltrosExtras = `
                 AND ($4::text IS NULL OR $4::text = '' OR tse.idevento::text = $4::text)
                 AND ($5::text IS NULL OR $5::text = '' OR tse.idcliente::text = $5::text)
                 AND ($6::text IS NULL OR $6::text = '' OR tse.idequipe::text = $6::text)
                 AND tse.statusstaff IN ${statusStaffPermitidos}
+                ${sqlFornecedor}
             `;
 
             let wherePeriodoFinal = whereEventos + sqlFiltrosExtras;
@@ -1622,5 +1635,51 @@ router.get('/empreiteiras', exigirFlag('financeiro', 'master', 'supremo', 'devs'
         res.status(500).json({ erro: "Erro ao gerar o relatório de empreiteiras." });
     }
 });
+
+// ===== Preferências do relatório (colunas/blocos ocultos) =====
+// Por usuário + empresa + tipo de relatório. Esconder coluna não apaga nada: ela continua na tela
+// esmaecida e só deixa de sair na impressão/Excel (ver aplicarColunasOcultas em Relatorios.js).
+// `ocultas` é uma lista de nomes de coluna (mesmos rótulos do cabeçalho) e dos blocos "_util"
+// (Utilização de Diárias) e "_cont" (Contingência).
+const TIPOS_PREFERENCIA = ['ajuda_custo', 'cache', 'cache_ajuda', 'operacional'];
+
+router.get('/preferencias', autenticarToken(), contextoEmpresa,
+    verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
+        const tipo = String(req.query.tipo || '');
+        if (!TIPOS_PREFERENCIA.includes(tipo)) return res.status(400).json({ erro: 'Tipo de relatório inválido.' });
+        try {
+            const { rows } = await pool.query(
+                `SELECT ocultas FROM relatoriopreferencias
+                  WHERE idusuario = $1 AND idempresa = $2 AND tiporelatorio = $3`,
+                [req.usuario.idusuario, req.idempresa, tipo]
+            );
+            res.json({ ocultas: rows[0]?.ocultas || [] });
+        } catch (error) {
+            console.error('Erro ao ler preferências do relatório:', error);
+            res.status(500).json({ erro: 'Erro ao ler as preferências do relatório.' });
+        }
+    });
+
+router.put('/preferencias', autenticarToken(), contextoEmpresa,
+    verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
+        const { tipo, ocultas } = req.body || {};
+        if (!TIPOS_PREFERENCIA.includes(tipo)) return res.status(400).json({ erro: 'Tipo de relatório inválido.' });
+        if (!Array.isArray(ocultas) || ocultas.length > 80 || ocultas.some((c) => typeof c !== 'string' || c.length > 60)) {
+            return res.status(400).json({ erro: 'Lista de colunas inválida.' });
+        }
+        try {
+            await pool.query(
+                `INSERT INTO relatoriopreferencias (idusuario, idempresa, tiporelatorio, ocultas, atualizadoem)
+                 VALUES ($1, $2, $3, $4::jsonb, NOW())
+                 ON CONFLICT (idusuario, idempresa, tiporelatorio)
+                 DO UPDATE SET ocultas = EXCLUDED.ocultas, atualizadoem = NOW()`,
+                [req.usuario.idusuario, req.idempresa, tipo, JSON.stringify([...new Set(ocultas)])]
+            );
+            res.json({ ok: true });
+        } catch (error) {
+            console.error('Erro ao gravar preferências do relatório:', error);
+            res.status(500).json({ erro: 'Erro ao gravar as preferências do relatório.' });
+        }
+    });
 
 module.exports = router;

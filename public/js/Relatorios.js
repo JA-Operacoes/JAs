@@ -13,6 +13,8 @@ function inicializarDadosEmpresa() {
             .then(empresa => {
                 const tema = empresa.nmfantasia;
                 aplicarTema(tema);
+                const elEmpresa = document.getElementById('relEmpresaNome');
+                if (elEmpresa) elEmpresa.textContent = `Empresa: ${tema}`;
 
                 console.log("Tema da empresa obtido:", tema);
 
@@ -47,6 +49,14 @@ let eventoSelecionadoId = null;
 let nomeEquipe = null; 
 let equipeId = null; // Variável global para armazenar o ID da equipe selecionada
 let podeVerFinanceiro;
+
+// Tela do Fechamento de Staff: último relatório gerado, colunas/blocos que o usuário desmarcou
+// (salvas por usuário + tipo em relatoriopreferencias) e se a prévia mostra "como vai imprimir".
+let relatorioAtual = null;
+let ocultasAtuais = [];
+let previaImpressao = false;
+const BLOCO_UTIL = '_util';
+const BLOCO_CONT = '_cont';
 
 
 function usuarioTemPermissaoFinanceiro() {
@@ -92,7 +102,7 @@ function configurarLayoutPorPermissao() {
         console.log("💰 Modo Financeiro Ativo: Escondendo opção comum.");
         
         // MOSTRA Financeiro
-        if (divFinanceiro) divFinanceiro.style.display = 'block'; 
+        if (divFinanceiro) divFinanceiro.style.display = ''; 
         if (divStatusPagamento) divStatusPagamento.style.display = 'block';
         if (ajudaCustoRadio) ajudaCustoRadio.checked = true;
 
@@ -107,7 +117,7 @@ function configurarLayoutPorPermissao() {
         if (divStatusPagamento) divStatusPagamento.style.display = 'none';
 
         // MOSTRA Operacional (Funcionários)
-        if (divOperacional) divOperacional.style.display = 'block';
+        if (divOperacional) divOperacional.style.display = '';
         if (operacionalRadio) operacionalRadio.checked = true;
     }
 }
@@ -118,7 +128,7 @@ function initRelatorios() {
     const reportEndDateInput = document.getElementById('reportEndDate');
     const reportTypeSelect = document.getElementById('reportType');
     const gerarRelatorioBtn = document.getElementById('gerarRelatorioBtn');
-    //const printButton = document.getElementById('printButton');
+    const printButton = document.getElementById('printButton');
     const closeButton = document.querySelector('#Relatorios .close');
    
 
@@ -131,9 +141,9 @@ function initRelatorios() {
         gerarRelatorio();
     };    
     
-    // window.printButtonClickListener = function () {
-    //     imprimirRelatorio();
-    // };
+    window.printButtonClickListener = function () {
+        imprimirRelatorioAtual();
+    };
 
     window.closeButtonClickListener = function () {
         const modal = document.getElementById('Relatorios');
@@ -154,10 +164,27 @@ function initRelatorios() {
         closeButton.addEventListener('click', window.closeButtonClickListener);
     }
 
+    configurarTelaEmbutida();
+    document.getElementById('xlsButton')?.addEventListener('click', exportarExcelAtual);
+    document.getElementById('btnMostrarTodasColunas')?.addEventListener('click', () => {
+        if (!relatorioAtual) return;
+        ocultasAtuais = [];
+        salvarPreferenciaColunas(relatorioAtual.tipo, ocultasAtuais);
+        desenharControlesColunas();
+        renderizarPreviaRelatorio();
+    });
+    document.getElementById('btnPreviaImpressao')?.addEventListener('click', (e) => {
+        previaImpressao = !previaImpressao;
+        e.currentTarget.setAttribute('aria-pressed', String(previaImpressao));
+        renderizarPreviaRelatorio();
+    });
+    // Evento/Cliente/Equipe listam o período aberto (hoje a hoje) desde o início, sem precisar mexer nas datas.
+    preencherEventosPeriodo();
+
     const urlParams = new URLSearchParams(window.location.search);
     const tipoRelatorioInicial = urlParams.get('tipo');
 
-    if (tipoRelatorioInicial && reportTypeSelect.querySelector(`option[value="${tipoRelatorioInicial}"]`)) {
+    if (tipoRelatorioInicial && reportTypeSelect && reportTypeSelect.querySelector(`option[value="${tipoRelatorioInicial}"]`)) {
         reportTypeSelect.value = tipoRelatorioInicial;
         gerarRelatorio();
     }
@@ -173,6 +200,11 @@ function initRelatorios() {
 
     console.log("⚙️ Relatórios inicializado.");
     configurarLayoutPorPermissao();
+    // Sem permissão para ver fornecedores, o tipo de pagamentos de empreiteira nem aparece.
+    if (!usuarioPodeVerFornecedores()) {
+        document.getElementById('empreiteirasRadio')?.closest('label')?.remove();
+    }
+    alternarFiltrosEmpreiteira();
 
     if (filtroInicial) {
         const radioEmp = document.getElementById('empreiteirasRadio');
@@ -457,6 +489,8 @@ const normalizeDate = (dateString, isEndOfDay = false) => {
 // }
 
 function preencherClientesEvento() {
+    // No relatório de pagamentos de empreiteira, Evento/Cliente só refiltram o que já foi carregado.
+    if (estaNaTelaDeEmpreiteiras()) { renderizarEmpreiteiras(); return; }
     const eventSelect = document.getElementById('eventSelect');
     const clientSelect = document.getElementById('clientSelect');
     const eventoId = eventSelect.value;
@@ -546,6 +580,7 @@ document.getElementById('reportStartDate').addEventListener('change', preencherE
 document.getElementById('reportEndDate').addEventListener('change', preencherEventosPeriodo);
 
 document.getElementById('eventSelect').addEventListener('change', preencherClientesEvento);
+document.getElementById('clientSelect').addEventListener('change', () => { if (estaNaTelaDeEmpreiteiras()) renderizarEmpreiteiras(); });
 //document.getElementById('equipeSelect').addEventListener('change', preencherEquipesEvento);
 
 
@@ -622,10 +657,14 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
         }
     };
 
-    const montarCelulaPendente = (rotulo, status, valorTotal, considerarPago = true) => {
+    // `ajuste` = Crédito/Débito do funcionário. É um lançamento à parte (staffajustefinanceiro,
+    // com status próprio) e nunca é dividido pelos 50%: entra inteiro DEPOIS de metade do valor
+    // já ter sido abatida. Somá-lo ao valorTotal antes da divisão descontava só metade do débito
+    // (ex.: cachê 460, Pago 50%, débito 120 -> mostrava 170 em vez de 230 - 120 = 110).
+    const montarCelulaPendente = (rotulo, status, valorTotal, considerarPago = true, ajuste = 0) => {
         const valor = parseFloat(valorTotal) || 0;
         const prefixo = rotulo ? `${rotulo}: ` : '';
-        const texto = `${prefixo}${formatarMoeda(valor)}`;
+        const texto = `${prefixo}${formatarMoeda(valor + ajuste)}`;
 
         if (status === 'Rejeitado' || status === 'Recusado') {
             return `<span style="text-decoration: line-through; color: #d9534f;">${texto}</span>`;
@@ -637,7 +676,7 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
             return `${prefixo}${formatarMoeda(0)}`;
         }
         if (considerarPago && (status === 'Pago 50%' || status === 'Pago50')) {
-            return `${prefixo}${formatarMoeda(valor / 2)}`;
+            return `${prefixo}${formatarMoeda(valor / 2 + ajuste)}`;
         }
         return texto;
     };
@@ -698,15 +737,15 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
             </p>
             <p class="legenda-relatorio" style="font-size: 11px; margin: 4px 0 10px;">
                 <span style="display:inline-block; margin-right:16px;">
-                    <span style="display:inline-block; width:12px; height:12px; background-color:#cbe4fd; border:1px solid #999; vertical-align:middle; margin-right:4px;"></span>
+                    <span style="display:inline-block; width:12px; height:12px; background-color:#e6f1fd; border:1px solid #999; vertical-align:middle; margin-right:4px;"></span>
                     Custo Fechado / Liberado
                 </span>
                 <span style="display:inline-block; margin-right:16px;">
-                    <span style="display:inline-block; width:12px; height:12px; background-color:rgb(136,9,9); border:1px solid #999; vertical-align:middle; margin-right:4px;"></span>
+                    <span style="display:inline-block; width:12px; height:12px; background-color:#fde4e4; border:1px solid #999; vertical-align:middle; margin-right:4px;"></span>
                     Ajuste de Custo aplicado
                 </span>
                 <span style="display:inline-block;">
-                    <span style="display:inline-block; width:12px; height:12px; background-color:var(--surface-3); border:1px solid #999; vertical-align:middle; margin-right:4px;"></span>
+                    <span style="display:inline-block; width:12px; height:12px; background-color:#fff9d6; border:1px solid #999; vertical-align:middle; margin-right:4px;"></span>
                     Aguardando Autorização / Inclusão no Orçamento
                 </span>
             </p>
@@ -778,15 +817,19 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                     const vlrAdic = parseFloat(item["VLR ADICIONAL"]) || 0;
                     const nivelExp = item.nivelexperiencia ? item.nivelexperiencia.trim() : '';
 
+                    // Cores de fundo suaves (legenda do topo): azul = Custo Fechado/Liberado, rosa =
+                    // Ajuste de Custo aplicado, amarelo = aguardando autorização / inclusão no
+                    // orçamento (as demais linhas). Todas claras, então o texto é sempre escuro e a
+                    // caixinha "Pendente de Autorização" usa as cores normais (antes o fundo do ajuste
+                    // era escuro e ela precisava de cores próprias).
                     let styleDestaque = '';
-                    // Linha de fundo escuro (Ajuste de Custo aplicado) — usado abaixo pra
-                    // decidir a cor do valor/label "Pendente de Autorização" da caixinha,
-                    // já que cinza/amarelo padrão perdem contraste em cima do vermelho escuro.
-                    const linhaAjusteDestaque = !(nivelExp === 'Custo Fechado' || nivelExp === 'Fechado' || nivelExp === 'Custo Liberado' || nivelExp === 'Liberado') && vlrAdic !== 0;
+                    const linhaAjusteDestaque = false;
                     if (nivelExp === 'Custo Fechado' || nivelExp === 'Fechado' || nivelExp === 'Custo Liberado' || nivelExp === 'Liberado') {
-                        styleDestaque = 'style="color: var(--on-brand-escuro); font-weight: bold; background-color: #cbe4fd;"';
+                        styleDestaque = 'style="color: #1a1a1a; font-weight: bold; background-color: #e6f1fd;"';
                     } else if (vlrAdic !== 0) {
-                        styleDestaque = 'style="color: var(--on-brand); font-weight: bold; background-color: rgb(255, 133, 133);"';
+                        styleDestaque = 'style="color: #1a1a1a; font-weight: bold; background-color: #fde4e4;"';
+                    } else {
+                        styleDestaque = 'style="background-color: #fff9d6;"';
                     }
 
                     const ehFuncionario = item.PERFIL_STAFF && item.PERFIL_STAFF.includes('Interno');
@@ -800,15 +843,25 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                     const itemAnterior = dadosFechamento[index - 1];
                     if (podeVerFinanceiro && empreiteiraAtual && (!itemAnterior || itemAnterior.EMPREITEIRA !== empreiteiraAtual)) {
                         linhas += `
-                        <tr class="row-grupo-empreiteira">
-                            <td colspan="${colunas.length}" style="text-align:left; padding:6px 8px; font-weight:bold; background: var(--surface-3); border-left: 4px solid var(--primary-color);">
+                        <tr class="row-grupo-empreiteira gr-emp">
+                            <td colspan="${colunas.length}" style="text-align:left; padding:6px 8px; font-weight:bold; background: #e6e6e6;">
                                 FORNECEDOR · ${empreiteiraAtual}
                             </td>
                         </tr>`;
                     }
 
+                    // Moldura grossa em volta de cada funcionário (todas as linhas dele + o subtotal):
+                    // bf = linha do bloco, bf-ini/bf-fim = primeira/última (o subtotal fecha o bloco
+                    // quando existe). gr-emp = barra lateral contínua do grupo da empreiteira.
+                    const primeiraLinhaFuncionario = index === 0 || dadosFechamento[index - 1].NOME !== item.NOME;
+                    const temSubtotal = funcionarioTemMultiplasLinhas && podeVerFinanceiro;
+                    const classesLinha = ['bf',
+                        primeiraLinhaFuncionario ? 'bf-ini' : '',
+                        ehUltimaLinhaFuncionario && !temSubtotal ? 'bf-fim' : '',
+                        podeVerFinanceiro && empreiteiraAtual ? 'gr-emp' : ''].filter(Boolean).join(' ');
+
                     linhas += `
-                    <tr ${styleDestaque}>
+                    <tr class="${classesLinha}" ${styleDestaque}>
                         <td class="${alinhamentos['FUNÇÃO']}">${item.FUNÇÃO || ''}</td>
                         <td class="${alinhamentos['NOME']}">${item.NOME || ''}
                             ${ehFuncMei
@@ -837,7 +890,7 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                             <td class="${alinhamentos['TOT GERAL']}">${formatarMoeda(item["TOT GERAL"])}</td>
                             <td class="${alinhamentos['CRÉDITO/DÉBITO']}" style="${parseFloat(item["CRÉDITO/DÉBITO"] || 0) < 0 ? 'color:#c0392b;' : parseFloat(item["CRÉDITO/DÉBITO"] || 0) > 0 ? 'color:#27ae60;' : ''}">${ehUltimaLinhaFuncionario ? formatarMoeda(item["CRÉDITO/DÉBITO"]) : ''}</td>
                             <td class="${alinhamentos['TOT PAGAR']}">
-                            ${montarCelulaPendente('Ajuda', item["STATUS AJUDA"], item["TOT AJUDA"])}<br>${montarCelulaPendente('Cachê', item["STATUS CACHÊ"], (ehUltimaLinhaFuncionario ? (parseFloat(item["TOT DIÁRIAS"] || 0) + parseFloat(item["CRÉDITO/DÉBITO"] || 0)) : item["TOT DIÁRIAS"]))}
+                            ${montarCelulaPendente('Ajuda', item["STATUS AJUDA"], item["TOT AJUDA"])}<br>${montarCelulaPendente('Cachê', item["STATUS CACHÊ"], item["TOT DIÁRIAS"], true, ehUltimaLinhaFuncionario ? parseFloat(item["CRÉDITO/DÉBITO"] || 0) : 0)}
                             </td>
                             <td class="${alinhamentos['STATUS SOLICITAÇÃO']}">${item["STATUS SOLICITAÇÃO"] || '-'}</td>
                             <td class="${alinhamentos['STATUS CACHÊ']} ${obterClasseStatus(item["STATUS CACHÊ"])}">${item["STATUS CACHÊ"] || 'Pendente'}</td>
@@ -878,15 +931,22 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                         const linhasFuncionario = dadosFechamento.filter(d => d.NOME === item.NOME);
                         const temMaisDeUmaLinha = linhasFuncionario.length > 1;
 
+                        // Espaço em branco entre os blocos de funcionário (as molduras grossas, via
+                        // .bf-ini/.bf-fim, fazem a separação). Dentro do grupo de uma empreiteira a barra
+                        // lateral continua (gr-emp); ao sair/entrar num grupo o espaço é maior (sep-grupo).
+                        const mesmoGrupoEmp = !!empreiteiraAtual && !!proximoItem && proximoItem.EMPREITEIRA === empreiteiraAtual;
+                        const mudaGrupoEmp = (empreiteiraAtual || null) !== ((proximoItem && proximoItem.EMPREITEIRA) || null);
                         const linhaSeparador = `
-                            <tr class="row-separador-funcionario" style="height: 4px; background-color: #d0e8ff; border: none;">
-                                <td colspan="${colunas.length}" style="padding: 0; font-size: 0; border-top: 2px solid #7ab8f5; border-bottom: none;"></td>
+                            <tr class="row-separador-funcionario${mesmoGrupoEmp ? ' gr-emp' : ''}${mudaGrupoEmp ? ' sep-grupo' : ''}">
+                                <td colspan="${colunas.length}"></td>
                             </tr>`;
+                        // Último do grupo da empreiteira: o TOTAL dela vem logo abaixo, sem espaço antes.
+                        const fimGrupoEmpreiteira = podeVerFinanceiro && !!empreiteiraAtual && (!proximoItem || proximoItem.EMPREITEIRA !== empreiteiraAtual);
 
                         if (temMaisDeUmaLinha && podeVerFinanceiro) {
                             // Funcionário com múltiplas linhas → linha de SUBTOTAL + separador azul abaixo
                             linhas += `
-                            <tr class="row-total" style="background-color: var(--surface-3);">
+                            <tr class="row-total bf bf-fim${podeVerFinanceiro && empreiteiraAtual ? ' gr-emp' : ''}" style="background-color: #eaeaea;">
                                 <td colspan="${colspanSubtotal}" style="text-align: right; font-weight: bold;">
                                     SUBTOTAL ${item.NOME}:
                                 </td>
@@ -926,10 +986,10 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                                     <td></td>
                                 `}
                             </tr>`;
-                            // Separador azul após o subtotal (não na última linha)
-                            if (proximoItem) linhas += linhaSeparador;
-                        } else if (proximoItem) {
-                            // Funcionário com apenas 1 linha → só o separador azul
+                            // Espaço após o subtotal (não na última linha)
+                            if (proximoItem && !fimGrupoEmpreiteira) linhas += linhaSeparador;
+                        } else if (proximoItem && !fimGrupoEmpreiteira) {
+                            // Funcionário com apenas 1 linha → só o espaço
                             linhas += linhaSeparador;
                         }
 
@@ -949,7 +1009,7 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                         const creditoEmp = [...creditoPorPessoa.values()].reduce((s, v) => s + v, 0);
                         const qtdPessoasEmp = creditoPorPessoa.size;
                         linhas += `
-                        <tr class="row-total row-total-empreiteira" style="background: var(--surface-3);">
+                        <tr class="row-total row-total-empreiteira gr-emp" style="background: #e6e6e6;">
                             <td colspan="${colunas.length}" style="padding:8px; border-bottom: 2px solid var(--primary-color);">
                                 <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:6px 16px;">
                                     <span>
@@ -966,8 +1026,8 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                             </td>
                         </tr>`;
                         if (proximoItem) linhas += `
-                            <tr class="row-separador-funcionario" style="height: 4px; background-color: #d0e8ff; border: none;">
-                                <td colspan="${colunas.length}" style="padding: 0; font-size: 0; border-top: 2px solid #7ab8f5; border-bottom: none;"></td>
+                            <tr class="row-separador-funcionario sep-grupo">
+                                <td colspan="${colunas.length}"></td>
                             </tr>`;
                     }
                 });
@@ -989,8 +1049,9 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                     <td class="text-right" style="font-weight: bold;">-</td>
                     <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalAjuda)}</td>
                     <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalGeral)}</td>
+                    <td></td><!-- CRÉDITO/DÉBITO: o total a pagar fica na coluna TOT PAGAR, não nesta -->
                     <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalPagar)}</td>
-                    <td colspan="8"></td>
+                    <td colspan="7"></td>
                 ` : `
                     <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalVlrDiarias)}</td>
                     ${tipo !== 'ajuda_custo' ? `<td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalVlrAdicional)}</td>` : ''}
@@ -998,10 +1059,9 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                     <td class="text-center" style="font-weight: bold;">${totaisFechamentoCache.totalTotalQtdDiarias || ''}</td>
                     <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalDiarias)}</td>
                     <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalGeral)}</td>
-                    <td></td>
+                    ${tipo === 'cache' ? '<td></td><td></td><td></td>' : '<td></td>'}
                     <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalPagar)}</td>
                     <td></td>
-                    ${tipo === 'cache' ? '<td></td><td></td>' : ''}
                 `}
             </tr>` : ''}
         </tbody>
@@ -1133,15 +1193,86 @@ const getPeriodoConsolidado = (evento, fasesSelecionadas, phaseKeyMap) => {
 // CONFERIR do Vencimentos. O período é a data do PAGAMENTO (ciclo), não a do evento.
 let empreiteirasCarregadas = false;
 
-async function alternarFiltrosEmpreiteira() {
-    const ehEmpreiteiras = document.querySelector('input[name="reportType"]:checked')?.value === 'empreiteiras';
-    const mostrar = (el, sim) => { if (el) el.style.display = sim ? '' : 'none'; };
-    document.querySelectorAll('.filtrosEmpreiteira').forEach(el => mostrar(el, ehEmpreiteiras));
-    ['.Eventos', '.Clientes', '.Equipes', '#fsFasesEvento', '#fsOpcoesPagamento'].forEach(sel => {
-        document.querySelectorAll(`#Relatorios ${sel}`).forEach(el => mostrar(el, !ehEmpreiteiras));
-    });
+let lotesCarregados = false;
+let lotesIndisponiveis = false;
+let filtrosVieramDosCiclos = false;
+
+function estaNaTelaDeEmpreiteiras() {
+    return document.querySelector('input[name="reportType"]:checked')?.value === 'empreiteiras';
+}
+
+const usuarioPodeVerFornecedores = () =>
+    !(typeof window.temFlag === 'function' && !window.temFlag('financeiro', 'master', 'supremo', 'devs'));
+
+// Empreiteira / Lote de Funcionários: lista de fornecedores categoria empreiteira da empresa.
+// Alimenta o filtro do Fechamento (quem é pago via lote) e o do relatório de pagamentos. Só quem
+// tem flag financeiro/master/supremo/devs enxerga (a rota recusa os demais com um 403 que abriria
+// um aviso de "Acesso negado" na cara do usuário), então nesse caso o filtro simplesmente some.
+async function carregarLotes() {
+    if (lotesCarregados || lotesIndisponiveis) return;
+    if (!usuarioPodeVerFornecedores()) { lotesIndisponiveis = true; return; }
+    try {
+        const lista = await fetchComToken('/relatorios/empreiteiras/lista');
+        const sel = document.getElementById('empreiteiraSelect');
+        (Array.isArray(lista) ? lista : []).forEach(f => {
+            const opt = document.createElement('option');
+            opt.value = f.idfornecedor;
+            opt.textContent = f.nmfantasia;
+            sel.appendChild(opt);
+        });
+        lotesCarregados = true;
+    } catch (e) {
+        console.error('Erro ao carregar empreiteiras:', e);
+    }
+}
+
+function limparSaidaRelatorio() {
+    marcarRelatorioPronto(false);
+    relatorioAtual = null;
+    previaImpressao = false;
+    const preview = document.getElementById('previewRelatorio');
+    if (preview) { preview.removeAttribute('srcdoc'); preview.style.display = 'none'; }
     const saida = document.getElementById('reportOutput');
     if (saida) saida.innerHTML = '';
+    const aviso = document.getElementById('avisoRelatorio');
+    if (aviso) { aviso.style.display = 'none'; aviso.textContent = ''; }
+    const caixa = document.getElementById('colunasBox');
+    if (caixa) caixa.style.display = 'none';
+    const btnPrev = document.getElementById('btnPreviaImpressao');
+    if (btnPrev) btnPrev.setAttribute('aria-pressed', 'false');
+    ['printButton', 'xlsButton'].forEach(id => { const b = document.getElementById(id); if (b) b.style.display = 'none'; });
+}
+
+async function alternarFiltrosEmpreiteira() {
+    const tipoAtual = document.querySelector('input[name="reportType"]:checked')?.value;
+    const ehEmpreiteiras = tipoAtual === 'empreiteiras';
+    const financeiro = !!tipoAtual && tipoAtual !== 'operacional';
+    const mostrar = (el, sim) => { if (el) el.style.display = sim ? '' : 'none'; };
+
+    // Evento e Cliente valem para todos os tipos (no de empreiteiras filtram o que cada pagamento
+    // tem daquele evento/cliente). Equipe e Fase só fazem sentido no Fechamento.
+    ['.Equipes', '#fsFasesEvento'].forEach(sel => {
+        document.querySelectorAll(`#Relatorios ${sel}`).forEach(el => mostrar(el, !ehEmpreiteiras));
+    });
+    mostrar(document.getElementById('filtroSituacaoEmp'), ehEmpreiteiras);
+    mostrar(document.getElementById('filtroLote'), financeiro && !lotesIndisponiveis && usuarioPodeVerFornecedores());
+    // "Sem empreiteira (staff direto)" só existe no Fechamento.
+    const optSem = document.getElementById('optSemEmpreiteira');
+    const selLote = document.getElementById('empreiteiraSelect');
+    if (optSem) optSem.hidden = ehEmpreiteiras;
+    if (ehEmpreiteiras && selLote && selLote.value === '__sem') selLote.value = '';
+
+    limparSaidaRelatorio();
+
+    // Saindo do relatório de pagamentos: Evento/Cliente voltam a listar o período (data do evento),
+    // e não os eventos que tinham pagamento (que foi o que o relatório de empreiteiras colocou ali).
+    if (!ehEmpreiteiras && filtrosVieramDosCiclos) {
+        filtrosVieramDosCiclos = false;
+        await preencherEventosPeriodo();
+    }
+
+    if (financeiro) await carregarLotes();
+    mostrar(document.getElementById('filtroLote'), financeiro && !lotesIndisponiveis && usuarioPodeVerFornecedores());
 
     if (!ehEmpreiteiras) return;
 
@@ -1154,21 +1285,38 @@ async function alternarFiltrosEmpreiteira() {
         ini.value = `${ano}-01-01`;
         fim.value = `${ano}-12-31`;
     }
+}
 
-    if (empreiteirasCarregadas) return;
-    try {
-        const lista = await fetchComToken('/relatorios/empreiteiras/lista');
-        const sel = document.getElementById('empreiteiraSelect');
-        (Array.isArray(lista) ? lista : []).forEach(f => {
+// Depois de gerar, Evento e Cliente passam a listar o que realmente tem pagamento no período
+// (a lista normal vem da data de realização do evento, que pode não coincidir com a do ciclo).
+function popularFiltrosPelosCiclos(ciclos) {
+    const eventos = new Map();
+    const clientes = new Map();
+    ciclos.forEach(c => c.pessoas.forEach(p => {
+        if (p.idevento) eventos.set(String(p.idevento), p.nmevento || `Evento ${p.idevento}`);
+        if (p.idcliente) clientes.set(String(p.idcliente), p.nmcliente || `Cliente ${p.idcliente}`);
+    }));
+    const preencher = (sel, mapa, rotuloTodos) => {
+        if (!sel) return;
+        const atual = sel.value;
+        sel.innerHTML = `<option value="">${rotuloTodos}</option>`;
+        [...mapa.entries()].sort((a, b) => a[1].localeCompare(b[1])).forEach(([id, nome]) => {
             const opt = document.createElement('option');
-            opt.value = f.idfornecedor;
-            opt.textContent = f.nmfantasia;
+            opt.value = id;
+            opt.textContent = nome;
             sel.appendChild(opt);
         });
-        empreiteirasCarregadas = true;
-    } catch (e) {
-        console.error('Erro ao carregar empreiteiras:', e);
-    }
+        if (mapa.has(atual)) sel.value = atual;
+    };
+    preencher(document.getElementById('eventSelect'), eventos, 'Todos os Eventos');
+    preencher(document.getElementById('clientSelect'), clientes, 'Todos os Clientes');
+    filtrosVieramDosCiclos = true;
+}
+
+function filtroAtualEmpreiteiras() {
+    const idevento = document.getElementById('eventSelect')?.value || '';
+    const idcliente = document.getElementById('clientSelect')?.value || '';
+    return { idevento, idcliente };
 }
 
 async function gerarRelatorioEmpreiteiras() {
@@ -1185,6 +1333,7 @@ async function gerarRelatorioEmpreiteiras() {
         return Swal.fire({ icon: 'warning', title: 'Período inválido', text: 'A data de início não pode ser depois da data de término.' });
     }
 
+    limparSaidaRelatorio();
     saida.innerHTML = '<p>Carregando pagamentos...</p>';
     let ciclos = [];
     try {
@@ -1203,7 +1352,25 @@ async function gerarRelatorioEmpreiteiras() {
     }
 
     window._relatorioEmpreiteiras = { ciclos, dataInicio, dataFim, situacao };
-    saida.innerHTML = montarRelatorioEmpreiteirasHtml(ciclos, { expandido: false, dataInicio, dataFim });
+    relatorioAtual = { tipo: 'empreiteiras' };
+    popularFiltrosPelosCiclos(ciclos);
+    renderizarEmpreiteiras();
+    const btnImprimir = document.getElementById('printButton');
+    if (btnImprimir) btnImprimir.style.display = '';
+    marcarRelatorioPronto(true);
+    expandirTelaRelatorios(true);
+}
+
+// Desenha (ou redesenha, ao trocar Evento/Cliente) os pagamentos já carregados, sem nova consulta.
+function renderizarEmpreiteiras() {
+    const dados = window._relatorioEmpreiteiras;
+    const saida = document.getElementById('reportOutput');
+    if (!dados || !saida) return;
+
+    const filtro = filtroAtualEmpreiteiras();
+    const filtroAtivo = !!(filtro.idevento || filtro.idcliente);
+    const html = montarRelatorioEmpreiteirasHtml(dados.ciclos, { expandido: filtroAtivo, dataInicio: dados.dataInicio, dataFim: dados.dataFim, filtro });
+    saida.innerHTML = html || '<p>Nenhum pagamento desse evento/cliente nesse período e filtro.</p>';
 
     saida.querySelectorAll('.rel-emp-ciclo').forEach(tr => {
         const alternar = () => {
@@ -1215,14 +1382,24 @@ async function gerarRelatorioEmpreiteiras() {
         tr.addEventListener('click', alternar);
         tr.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); alternar(); } });
     });
-    saida.querySelector('#btnImprimirEmpreiteiras')?.addEventListener('click', () => {
-        const d = window._relatorioEmpreiteiras;
-        imprimirRelatorio(montarRelatorioEmpreiteirasHtml(d.ciclos, { expandido: true, impressao: true, dataInicio: d.dataInicio, dataFim: d.dataFim }));
-    });
+    saida.querySelector('#btnImprimirEmpreiteiras')?.addEventListener('click', imprimirEmpreiteirasAtual);
+}
+
+function imprimirEmpreiteirasAtual() {
+    const d = window._relatorioEmpreiteiras;
+    if (!d) return;
+    imprimirRelatorio(montarRelatorioEmpreiteirasHtml(d.ciclos, {
+        expandido: true, impressao: true, dataInicio: d.dataInicio, dataFim: d.dataFim, filtro: filtroAtualEmpreiteiras()
+    }));
 }
 
 // `expandido`: detalhe (evento → pessoa) já aberto — usado na impressão, que não tem clique.
-function montarRelatorioEmpreiteirasHtml(ciclos, { expandido = false, impressao = false, dataInicio, dataFim } = {}) {
+// `filtro` (idevento/idcliente): só aparecem os pagamentos que têm pessoas daquele evento/cliente, o
+// detalhe mostra só essas pessoas e ganha a coluna "Do evento"/"Do cliente" com a parte do filtro
+// dentro de cada pagamento. Situação, Pago e Total continuam do ciclo inteiro (NF e comprovante
+// também valem para o ciclo todo). Crédito/Débito aparece sempre no ciclo onde está, marcado quando
+// a origem é de outro evento/cliente — e nesse caso não entra na coluna do filtro.
+function montarRelatorioEmpreiteirasHtml(ciclos, { expandido = false, impressao = false, dataInicio, dataFim, filtro = {} } = {}) {
     const brl = (v) => (Number(v) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
     const dataBR = (iso) => iso ? iso.split('-').reverse().join('/') : '---';
     const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
@@ -1230,41 +1407,68 @@ function montarRelatorioEmpreiteirasHtml(ciclos, { expandido = false, impressao 
     const linkAnexo = (url, rotulo) => url
         ? (impressao ? `<span>${rotulo}</span>` : `<a href="${esc(url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${rotulo}</a>`)
         : '<span class="rel-emp-vazio">—</span>';
+    const celulaCreditoDebito = (v) => v === 0
+        ? '<span class="rel-emp-vazio">—</span>'
+        : `<span style="color:${v < 0 ? '#c0392b' : '#27ae60'};">${brl(v)}</span>`;
 
+    const idEvento = String(filtro.idevento || '');
+    const idCliente = String(filtro.idcliente || '');
+    const filtroAtivo = !!(idEvento || idCliente);
+    const rotuloFiltro = idEvento ? 'Do evento' : 'Do cliente';
+    const pessoaNoFiltro = (p) => (!idEvento || String(p.idevento) === idEvento) && (!idCliente || String(p.idcliente) === idCliente);
+    const ajusteForaDoFiltro = (a) => idEvento ? String(a.idevento_origem) !== idEvento : (idCliente ? String(a.idcliente_origem) !== idCliente : false);
+    const somaAjustes = (lista) => lista.reduce((s, a) => s + (a.sinal || (a.tipo === 'Credito' ? 1 : -1)) * (Number(a.valor) || 0), 0);
+
+    // Só os pagamentos que têm gente do filtro; os totais abaixo somam apenas esses.
+    const visiveis = ciclos
+        .map(c => ({ c, pf: filtroAtivo ? c.pessoas.filter(pessoaNoFiltro) : c.pessoas }))
+        .filter(x => x.pf.length > 0);
+    if (!visiveis.length) return '';
+
+    const nCols = filtroAtivo ? 11 : 10;
     const porFornecedor = new Map();
-    ciclos.forEach(c => {
-        if (!porFornecedor.has(c.idfornecedor)) porFornecedor.set(c.idfornecedor, []);
-        porFornecedor.get(c.idfornecedor).push(c);
+    visiveis.forEach(x => {
+        if (!porFornecedor.has(x.c.idfornecedor)) porFornecedor.set(x.c.idfornecedor, []);
+        porFornecedor.get(x.c.idfornecedor).push(x);
     });
 
-    const totalGeral = ciclos.reduce((s, c) => s + c.total, 0);
-    const pagoGeral = ciclos.reduce((s, c) => s + c.pago, 0);
+    const sel = (c, pf) => sum2(pf, p => p.total) + somaAjustes(c.ajustes.filter(a => !ajusteForaDoFiltro(a)));
+    const sum2 = (l, f) => l.reduce((s, x) => s + (Number(f(x)) || 0), 0);
+
+    const totalGeral = sum2(visiveis, x => x.c.total);
+    const pagoGeral = sum2(visiveis, x => x.c.pago);
+    const creditoGeral = sum2(visiveis, x => somaAjustes(x.c.ajustes));
+    const selGeral = sum2(visiveis, x => sel(x.c, x.pf));
     let linhas = '';
     let idx = 0;
 
     porFornecedor.forEach((lista) => {
-        const f = lista[0];
+        const f = lista[0].c;
         const regra = f.tipopgto === 'INTERVALO' ? `a cada ${f.intervalodias} dias` : f.tipopgto === 'MENSAL' ? `todo dia ${f.diamespgto}` : 'por evento';
-        linhas += `<tr class="rel-emp-grupo"><td colspan="9"><strong>${esc(f.nmfantasia)}</strong> · PIX ${esc(f.pix || '—')} · ${regra} · ${f.envianf ? 'emite NF' : 'não emite NF (listagem)'}</td></tr>`;
+        linhas += `<tr class="rel-emp-grupo"><td colspan="${nCols}"><strong>${esc(f.nmfantasia)}</strong> · PIX ${esc(f.pix || '—')} · ${regra} · ${f.envianf ? 'emite NF' : 'não emite NF (listagem)'}</td></tr>`;
 
-        lista.sort((a, b) => a.dtciclo.localeCompare(b.dtciclo)).forEach(c => {
+        lista.sort((a, b) => a.c.dtciclo.localeCompare(b.c.dtciclo)).forEach(({ c, pf }) => {
             const idDet = `rel-emp-det-${idx++}`;
             const periodo = c.dtinicio ? `${dataBR(c.dtinicio).slice(0, 5)} a ${dataBR(c.dtciclo).slice(0, 5)}` : 'por evento';
+            const nomesEventos = [...new Map(c.pessoas.map(p => [String(p.idevento), p.nmevento])).entries()];
+            const colEventos = nomesEventos.map(([id, nome]) => idEvento && id === idEvento ? `<strong>${esc(nome)}</strong>` : esc(nome)).join('<br>');
             linhas += `<tr class="rel-emp-ciclo" data-detalhe="${idDet}" tabindex="0" aria-expanded="${expandido}">
                 <td>${impressao ? '' : '<span class="rel-emp-seta">▶</span> '}<strong>${dataBR(c.dtciclo)}</strong></td>
                 <td class="text-center">${periodo}</td>
-                <td class="text-center">${c.qtdEventos}</td>
+                <td class="text-left">${colEventos}</td>
                 <td class="text-center">${c.qtdPessoas}</td>
                 <td class="text-center"><span class="rel-emp-situacao ${corSituacao(c.status)}">${c.status === 'Pendente' ? 'Em aberto' : c.status}</span></td>
                 <td class="text-center">${linkAnexo(c.notafiscal, c.envianf ? 'Ver NF' : 'Ver Listagem')}</td>
-                <td class="text-center">${linkAnexo(c.comprovante, 'Ver Comp.')}</td>
+                <td class="text-right">${celulaCreditoDebito(somaAjustes(c.ajustes))}</td>
                 <td class="text-right">${brl(c.pago)}</td>
                 <td class="text-right">${brl(c.total)}</td>
+                ${filtroAtivo ? `<td class="text-right rel-emp-sel"><strong>${brl(sel(c, pf))}</strong></td>` : ''}
+                <td class="text-center">${linkAnexo(c.comprovante, 'Ver Comp.')}</td>
             </tr>`;
 
             // Detalhe: evento → pessoa, e crédito/débito do ciclo
             const porEvento = new Map();
-            c.pessoas.forEach(p => {
+            pf.forEach(p => {
                 if (!porEvento.has(p.idevento)) porEvento.set(p.idevento, { nome: p.nmevento, pessoas: [] });
                 porEvento.get(p.idevento).pessoas.push(p);
             });
@@ -1281,22 +1485,30 @@ function montarRelatorioEmpreiteirasHtml(ciclos, { expandido = false, impressao 
                 });
             });
             (c.ajustes || []).forEach(a => {
-                det += `<tr><td>${esc(a.nome)}</td><td colspan="4">${a.tipo === 'Credito' ? 'Crédito' : 'Débito'} · ${esc(a.justificativa || '')}</td>
+                const fora = filtroAtivo && ajusteForaDoFiltro(a);
+                const nota = fora
+                    ? ` <em class="rel-emp-nota-fora">· origem: ${esc(a.nmevento_origem || 'outro evento')} (outro ${idEvento ? 'evento' : 'cliente'}; não entra em "${rotuloFiltro}")</em>`
+                    : '';
+                det += `<tr class="${fora ? 'rel-emp-fora' : ''}"><td>${esc(a.nome)}</td><td colspan="4">${a.tipo === 'Credito' ? 'Crédito' : 'Débito'} · ${esc(a.justificativa || '')}${nota}</td>
                     <td class="text-center">${a.status === 'Pago' ? 'Pago' : 'Em aberto'}</td>
                     <td class="text-right">${a.tipo === 'Credito' ? '' : '-'}${brl(a.valor)}</td></tr>`;
             });
             det += '</tbody></table>';
-            linhas += `<tr class="rel-emp-detalhe" id="${idDet}" style="${expandido ? '' : 'display:none;'}"><td colspan="9">${det}</td></tr>`;
+            linhas += `<tr class="rel-emp-detalhe" id="${idDet}" style="${expandido ? '' : 'display:none;'}"><td colspan="${nCols}">${det}</td></tr>`;
         });
 
-        const tot = lista.reduce((s, c) => s + c.total, 0);
-        const pago = lista.reduce((s, c) => s + c.pago, 0);
-        linhas += `<tr class="rel-emp-total"><td colspan="7" class="text-right">TOTAL ${esc(f.nmfantasia.toUpperCase())}</td>
-            <td class="text-right">${brl(pago)}</td><td class="text-right">${brl(tot)}</td></tr>`;
+        const tot = sum2(lista, x => x.c.total);
+        const pago = sum2(lista, x => x.c.pago);
+        const cred = sum2(lista, x => somaAjustes(x.c.ajustes));
+        const selForn = sum2(lista, x => sel(x.c, x.pf));
+        linhas += `<tr class="rel-emp-total"><td colspan="6" class="text-right">TOTAL ${esc(f.nmfantasia.toUpperCase())}</td>
+            <td class="text-right">${celulaCreditoDebito(cred)}</td><td class="text-right">${brl(pago)}</td><td class="text-right">${brl(tot)}</td>
+            ${filtroAtivo ? `<td class="text-right">${brl(selForn)}</td>` : ''}<td></td></tr>`;
     });
 
-    linhas += `<tr class="rel-emp-total-geral"><td colspan="7" class="text-right">TOTAL GERAL</td>
-        <td class="text-right">${brl(pagoGeral)}</td><td class="text-right">${brl(totalGeral)}</td></tr>`;
+    linhas += `<tr class="rel-emp-total-geral"><td colspan="6" class="text-right">TOTAL GERAL</td>
+        <td class="text-right">${celulaCreditoDebito(creditoGeral)}</td><td class="text-right">${brl(pagoGeral)}</td><td class="text-right">${brl(totalGeral)}</td>
+        ${filtroAtivo ? `<td class="text-right">${brl(selGeral)}</td>` : ''}<td></td></tr>`;
 
     // Impressão roda num iframe sem o CSS da tela (ver imprimirRelatorio) — leva o próprio estilo.
     const estiloImpressao = impressao ? `<style>
@@ -1310,6 +1522,9 @@ function montarRelatorioEmpreiteirasHtml(ciclos, { expandido = false, impressao 
         .rel-emp-evento td{font-weight:bold;background:#f2f2f2}
         .rel-emp-detalhe > td{padding:4px 4px 10px 24px}
         .rel-emp-vazio{color:#999}
+        .rel-emp-sel{background:#fff9d6}
+        .rel-emp-fora{opacity:.65}
+        .rel-emp-nota-fora{color:#b36b00}
     </style>` : '';
 
     return `
@@ -1317,31 +1532,35 @@ function montarRelatorioEmpreiteirasHtml(ciclos, { expandido = false, impressao 
         ${estiloImpressao}
         ${impressao ? `<div class="print-header-top">
             <img src="${empresaLogoPath}" alt="Logo Empresa" class="logo-ja">
-            <div class="header-title-container"><h1 class="header-title">Pagamentos a Empreiteiras</h1></div>
+            <div class="header-title-container"><h1 class="header-title">Pagamentos Empreiteira / Lote Funcionários</h1></div>
         </div>` : ''}
         <div class="rel-emp-cabecalho">
             <div>
-                <strong>Pagamentos a Empreiteiras</strong>
+                <strong>Pagamentos Empreiteira / Lote Funcionários</strong>
                 <span>Pagamentos de ${dataBR(dataInicio)} a ${dataBR(dataFim)}</span>
             </div>
             ${impressao ? '' : '<button type="button" id="btnImprimirEmpreiteiras" class="rel-emp-btn">Imprimir</button>'}
         </div>
         <div class="rel-emp-resumo">
-            <div><span>Ciclos</span><strong>${ciclos.length}</strong></div>
+            <div><span>Ciclos</span><strong>${visiveis.length}</strong></div>
             <div><span>Pago</span><strong class="rel-emp-pago-txt">${brl(pagoGeral)}</strong></div>
             <div><span>Em aberto</span><strong class="rel-emp-aberto-txt">${brl(totalGeral - pagoGeral)}</strong></div>
             <div><span>Total</span><strong>${brl(totalGeral)}</strong></div>
+            ${filtroAtivo ? `<div><span>${rotuloFiltro}</span><strong>${brl(selGeral)}</strong></div>` : ''}
         </div>
         <div class="rel-emp-rolagem">
             <table class="report-table">
                 <thead><tr>
                     <th>Pagamento</th><th class="text-center">Período coberto</th><th class="text-center">Eventos</th>
                     <th class="text-center">Pessoas</th><th class="text-center">Situação</th><th class="text-center">NF / Listagem</th>
-                    <th class="text-center">Comprovante</th><th class="text-right">Pago</th><th class="text-right">Total</th>
+                    <th class="text-right">Crédito / Débito</th><th class="text-right">Pago</th><th class="text-right">Total do ciclo</th>
+                    ${filtroAtivo ? `<th class="text-right rel-emp-sel">${rotuloFiltro}</th>` : ''}
+                    <th class="text-center">Comprovante</th>
                 </tr></thead>
                 <tbody>${linhas}</tbody>
             </table>
         </div>
+        ${filtroAtivo ? `<p class="rel-emp-dica">NF e comprovante valem para o ciclo inteiro. A coluna "${rotuloFiltro}" mostra só a parte do filtro dentro de cada pagamento.</p>` : ''}
         ${impressao ? '' : '<p class="rel-emp-dica">Clique num pagamento para ver os eventos e as pessoas. Para trocar ou remover anexos, ou estornar, use o CONFERIR em Vencimentos.</p>'}
     </div>`;
 }
@@ -1395,7 +1614,7 @@ async function gerarRelatorio() {
         const nomesFases = fasesSelecionadas.map(value => {
             const input = document.querySelector(`input[name="phaseFilter"][value="${value}"]`);
             // Procura pelo elemento label/span que contém o nome.
-            const labelText = input ? input.closest('label').querySelector('.checkbox__textwrapper').textContent.trim() : `ID ${value}`;
+            const labelText = input ? input.closest('label').querySelector('.checkbox__textwrapper, span').textContent.trim() : `ID ${value}`;
             return labelText;
         });
         filtroFaseDisplay = ` (Fases: ${nomesFases.join(', ')})`;
@@ -1576,7 +1795,7 @@ async function gerarRelatorio() {
         const labelElement = checkedInput.closest('label');
 
         if (labelElement) {           
-            const textWrapper = labelElement.querySelector('.checkbox__textwrapper');            
+            const textWrapper = labelElement.querySelector('.checkbox__textwrapper, span');            
            
             nomeRelatorio = textWrapper ? textWrapper.textContent.trim() : 'Relatório Desconhecido';            
             console.log("Nome do Relatório:", nomeRelatorio);            
@@ -1587,7 +1806,7 @@ async function gerarRelatorio() {
   //  const clienteId = document.getElementById('clientSelect').value;
 
     //const eventoId = eventSelectElement ? eventSelectElement.value : null; // CORREÇÃO AQUI!
-    const clienteId = document.getElementById('clientSelect').value;
+    let clienteId = document.getElementById('clientSelect').value;
 
     const equipeSelectElement = document.getElementById('equipeSelect');
     const equipeId = equipeSelectElement ? equipeSelectElement.value : 'todos'; // ID ou 'todos'
@@ -1654,11 +1873,20 @@ async function gerarRelatorio() {
         }
     }
 
+    // Evento com mais de um cliente: escolher um ou imprimir todos (ver resolverClientesDoEvento).
+    const resolucaoCliente = await resolverClientesDoEvento(eventoSelecionado, clienteId);
+    if (!resolucaoCliente.ok) {
+        gerarRelatorioBtn.disabled = false;
+        return;
+    }
+    clienteId = resolucaoCliente.clienteId;
+    limparSaidaRelatorio();
+
     try {
         //console.log("EVENTO FILTER FINAL ENVIADO", eventoFilter, dataFinalInicio, dataFinalFim);
         console.log("EVENTO FILTER FINAL ENVIADO", tipo, dataFinalInicio, dataFinalFim, eventoId, clienteId, equipeId, incluirPendentes,incluirPagos);
       
-       const url = `/relatorios?tipo=${tipo}&dataInicio=${dataFinalInicio}&dataFim=${dataFinalFim}&evento=${eventoId}&cliente=${clienteId}&equipe=${equipeId}&pendentes=${incluirPendentes}&pagos=${incluirPagos}`;
+       const url = `/relatorios?tipo=${tipo}&dataInicio=${dataFinalInicio}&dataFim=${dataFinalFim}&evento=${eventoId}&cliente=${clienteId}&equipe=${equipeId}&pendentes=${incluirPendentes}&pagos=${incluirPagos}&fornecedor=${encodeURIComponent(document.getElementById('empreiteiraSelect')?.value || '')}`;
        const dados = await fetchComToken(url);
         console.log('Dados recebidos do backend:', dados);
 
@@ -1725,70 +1953,40 @@ async function gerarRelatorio() {
             });
         }
 
-        // Abrir a caixa de diálogo para escolher o formato
-        Swal.fire({
-            title: 'Gerar Relatório',
-            text: 'Em qual formato você deseja gerar o relatório?',
-            icon: 'question',
-            showDenyButton: true,
-            confirmButtonText: 'PDF (Visualizar/Imprimir)',
-            denyButtonText: 'XLS (Excel)',
-            confirmButtonColor: '#3085d6',
-            denyButtonColor: '#28a745',
-        }).then((result) => {
-            if (result.isConfirmed) {
-                // Opção 1: Gerar HTML para impressão
-                let relatorioHtmlCompleto = '';
-
-                const eventosOrdenados = Object.values(dadosAgrupadosPorEvento).sort((a, b) => {
-                    return a.nomeEvento.localeCompare(b.nomeEvento);
-                });
-                const incluirPendentes = checkPendentes.checked; // Será true ou false
-                const incluirPagos = checkPagos.checked;
-
-                eventosOrdenados.forEach(evento => {
-                    const eventoIdParaTotal = evento.fechamentoCache.length > 0 ? evento.fechamentoCache[0].idevento : null;
-                    const totaisDoEventoAtual = eventoIdParaTotal && dados.fechamentoCacheTotaisPorEvento ?
-                        (dados.fechamentoCacheTotaisPorEvento[eventoIdParaTotal] || { totalVlrDiarias: 0, totalQtdDiarias: 0, totalVlrAdicional: 0, totalTotalCaixinha: 0, totalTotalDiarias: 0, totalTotalGeral: 0, totalTotalPagar: 0 }) :
-                        { totalVlrDiarias: 0, totalQtdDiarias: 0, totalVlrAdicional: 0, totalTotalCaixinha: 0, totalTotalDiarias: 0, totalTotalGeral: 0, totalTotalPagar: 0 };
-                    console.log('Totais do evento atual:', totaisDoEventoAtual); // Log para verificar os totais
-                    relatorioHtmlCompleto += montarRelatorioHtmlEvento(
-                        evento.fechamentoCache,
-                        evento.nomeEvento,
-                        nomeRelatorio,
-                        evento.nomeCliente,                        
-                        evento.utilizacaoDiarias,
-                        evento.contingencia,
-                        totaisDoEventoAtual,
-                        filtroFaseDisplay,
-                        podeVerFinanceiro,
-                        tipo
-                    );
-                });
-
-                imprimirRelatorio(relatorioHtmlCompleto);
-
-            } else if (result.isDenied) {
-                // Opção 2: Gerar XLS
-               // const nomeDoArquivoGerado = exportarParaXls(dados, nomeRelatorio); // Certifique-se de que exportarParaXls() aceita os dados
-                  const nomesDosArquivosGerados = exportarParaXls(dadosAgrupadosPorEvento, nomeRelatorio);
-                  
-                // Swal.fire({
-                //     icon: 'success',
-                //     title: 'Relatório XLS Gerado!',
-                //     html: `O arquivo <strong>"${nomeDoArquivoGerado}"</strong> foi gerado com sucesso e está na sua pasta de <strong>DOWNLOADS</strong>.`,
-                //     confirmButtonText: 'Entendido'
-                // });
-
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Relatórios XLS Gerados!',
-                    html: `Os arquivos foram gerados com sucesso e estão na sua pasta de <strong>DOWNLOADS</strong>.<br><br>
-                           Arquivos gerados: <ul><li>${nomesDosArquivosGerados.join('</li><li>')}</li></ul>`,
-                    confirmButtonText: 'Entendido'
-                });
-            }
+        // O topo do relatório lista TODOS os clientes que aparecem nas linhas do evento (antes ficava
+        // só o do primeiro registro, e um evento com mais de um cliente saía sob o nome de um só).
+        Object.values(dadosAgrupadosPorEvento).forEach(g => {
+            const nomes = [...new Set((g.fechamentoCache || []).map(i => i.nomeCliente).filter(Boolean))].sort();
+            if (nomes.length) g.nomeCliente = nomes.join(' / ');
         });
+
+        // O relatório aparece na própria tela (com as colunas desmarcáveis); Imprimir e Excel são
+        // botões da barra e respeitam as colunas ocultas.
+        const eventosOrdenados = Object.values(dadosAgrupadosPorEvento).sort((a, b) => {
+            return a.nomeEvento.localeCompare(b.nomeEvento);
+        });
+        let relatorioHtmlCompleto = '';
+        eventosOrdenados.forEach(evento => {
+            const eventoIdParaTotal = evento.fechamentoCache.length > 0 ? evento.fechamentoCache[0].idevento : null;
+            const totaisDoEventoAtual = eventoIdParaTotal && dados.fechamentoCacheTotaisPorEvento ?
+                (dados.fechamentoCacheTotaisPorEvento[eventoIdParaTotal] || { totalVlrDiarias: 0, totalQtdDiarias: 0, totalVlrAdicional: 0, totalTotalCaixinha: 0, totalTotalDiarias: 0, totalTotalGeral: 0, totalTotalPagar: 0 }) :
+                { totalVlrDiarias: 0, totalQtdDiarias: 0, totalVlrAdicional: 0, totalTotalCaixinha: 0, totalTotalDiarias: 0, totalTotalGeral: 0, totalTotalPagar: 0 };
+            relatorioHtmlCompleto += montarRelatorioHtmlEvento(
+                evento.fechamentoCache,
+                evento.nomeEvento,
+                nomeRelatorio,
+                evento.nomeCliente,
+                evento.utilizacaoDiarias,
+                evento.contingencia,
+                totaisDoEventoAtual,
+                filtroFaseDisplay,
+                podeVerFinanceiro,
+                tipo
+            );
+        });
+
+        relatorioAtual = { tipo, nomeRelatorio, html: relatorioHtmlCompleto, dadosAgrupadosPorEvento };
+        await mostrarRelatorioNaTela();
 
     } catch (error) {
         console.error('Falha ao gerar o relatório:', error.message || error);
@@ -1851,12 +2049,28 @@ function imprimirRelatorio(conteudoRelatorio) {
     const printIframe = document.getElementById('printIframe');
     const iframeDoc = printIframe.contentDocument || printIframe.contentWindow.document;
 
-    // Limpa o iframe antes de adicionar o conteúdo
-    iframeDoc.body.innerHTML = '';
+    // Documento novo a cada impressão (os mesmos estilos servem à prévia na tela).
+    iframeDoc.open();
+    iframeDoc.write(montarDocumentoRelatorio(conteudoRelatorio));
+    iframeDoc.close();
 
-    const styleElement = iframeDoc.createElement('style');
-    // Cole todos os seus estilos de impressão aqui dentro
-    const estilosCompletos = `
+    // Pequeno atraso para garantir que o iframe renderizou o conteúdo
+    setTimeout(() => {
+        printIframe.contentWindow.focus();
+        printIframe.contentWindow.print();
+    }, 500);
+}
+
+// CSS do relatório: o mesmo para a impressão e para a prévia na tela, assim a tela é idêntica ao papel.
+// O iframe não herda o CSS da página, então as variáveis que o HTML do relatório usa são definidas aqui.
+function estilosRelatorio() {
+    let primaria = '#c8102e';
+    try {
+        const v = getComputedStyle(document.documentElement).getPropertyValue('--primary-color').trim();
+        if (v) primaria = v;
+    } catch (e) { /* mantém o padrão */ }
+    const variaveis = `:root{--primary-color:${primaria};--surface-3:#e6e6e6;--on-brand:#ffffff;--on-brand-escuro:#1a1a1a;--text-2:#555555;--text-3:#888888;}\n`;
+    return variaveis + `
        @page {
             size: A4 landscape;
             margin: 1cm;
@@ -2094,34 +2308,378 @@ function imprimirRelatorio(conteudoRelatorio) {
             display: inline-block;
             color: #333;
         }
+    ` + `
+        /* Moldura grossa em volta de cada funcionário (linhas + subtotal); o espaço em branco entre
+           os blocos fica sem borda. gr-emp = barra lateral contínua do grupo da empreiteira. */
+        .report-table tr.bf td:first-child { border-left: 3px solid #000; }
+        .report-table tr.bf td:last-child { border-right: 3px solid #000; }
+        .report-table tr.bf-ini td { border-top: 3px solid #000; }
+        .report-table tr.bf-fim td { border-bottom: 3px solid #000; }
+        .report-table tr.row-separador-funcionario td { height: 9px; padding: 0; background: #fff; border: 0; font-size: 0; }
+        .report-table tr.row-separador-funcionario.sep-grupo td { height: 18px; }
+        .report-table tr.gr-emp td:first-child { border-left: 5px solid var(--primary-color); }
+        /* Só na prévia da tela: coluna/bloco que NÃO sai na impressão fica esmaecido. */
+        .col-oculta { opacity: .32; background-image: repeating-linear-gradient(135deg, transparent 0 5px, rgba(0,0,0,.06) 5px 6px); }
+        .bloco-oculto { opacity: .32; }
+        .tag-oculta { display: block; font-size: 7px; font-weight: 400; font-style: italic; text-transform: none; }
+        /* Utilização de Diárias + Contingência dividem a linha (antes 50% + 50% + 20px de espaço passava
+           da largura e criava rolagem horizontal). */
+        .resumo-par-orcamento > .tabela-resumo { flex: 1 1 0; width: auto !important; min-width: 0; box-sizing: border-box; }
     `;
-
-    styleElement.innerHTML = estilosCompletos;
-    iframeDoc.head.appendChild(styleElement);
-    iframeDoc.body.innerHTML = conteudoRelatorio;
-    
-    // Pequeno atraso para garantir que o iframe renderizou o conteúdo
-    setTimeout(() => {
-        printIframe.contentWindow.focus();
-        printIframe.contentWindow.print();
-        // Limpa o iframe após a impressão, para o caso de um novo relatório
-        setTimeout(() => {
-            iframeDoc.body.innerHTML = '';
-        }, 100);
-    }, 500);
 }
 
 
-  document.querySelectorAll('input[type="radio"]').forEach(radio => {
-    radio.addEventListener('mousedown', function(e) {
-      if (e.button !== 0) return; // ignora clique que não seja o esquerdo
-      if (this.checked) {
-        e.preventDefault(); // previne seleção normal
-        this.checked = false; // desmarca
-      }
-    });
-  });
+// =====================================================================================
+// TELA DO FECHAMENTO DE STAFF (pílula Relatórios): relatório na própria tela, colunas ocultáveis
+// =====================================================================================
 
+// Nomes das colunas da tabela principal (os mesmos rótulos do cabeçalho), na ordem em que saem.
+function nomesDasColunas(raiz) {
+    const tabela = raiz.querySelector('.relatorio-evento > table.report-table');
+    if (!tabela) return [];
+    return Array.from(tabela.querySelectorAll('thead tr:first-child > th')).map(th => th.textContent.trim());
+}
+
+// Esconde colunas/blocos que o usuário desmarcou. Trabalha sobre a tabela já pronta (e não no código
+// que a monta) porque as linhas de SUBTOTAL, TOTAL e FORNECEDOR têm células de largura fixa
+// (colspan); aqui cada célula é posicionada pelo índice da coluna e as de colspan encolhem.
+//  modo 'marcar'  → só esmaece (tela): a coluna continua visível, com um aviso no cabeçalho.
+//  modo 'remover' → tira de verdade (impressão/Excel).
+function aplicarColunasOcultas(raiz, ocultas, modo) {
+    const ocultasSet = new Set(ocultas || []);
+    if (!ocultasSet.size) return;
+
+    raiz.querySelectorAll('.relatorio-evento').forEach(ev => {
+        const tabela = Array.from(ev.children).find(el => el.matches && el.matches('table.report-table'));
+        if (tabela) {
+            const cabecalho = tabela.querySelector('thead tr');
+            const nomes = Array.from(cabecalho.children).map(th => th.textContent.trim());
+            const indices = new Set();
+            nomes.forEach((nome, i) => { if (ocultasSet.has(nome)) indices.add(i); });
+
+            if (indices.size) {
+                tabela.querySelectorAll('tr').forEach(tr => {
+                    let coluna = 0;
+                    Array.from(tr.children).forEach(cel => {
+                        const span = cel.colSpan || 1;
+                        if (span === 1) {
+                            if (indices.has(coluna)) {
+                                if (modo === 'remover') cel.remove();
+                                else cel.classList.add('col-oculta');
+                            }
+                        } else if (modo === 'remover') {
+                            let escondidas = 0;
+                            for (let k = coluna; k < coluna + span; k++) if (indices.has(k)) escondidas++;
+                            if (escondidas) {
+                                const novo = span - escondidas;
+                                if (novo > 0) cel.colSpan = novo; else cel.remove();
+                            }
+                        }
+                        coluna += span;
+                    });
+                });
+                if (modo === 'marcar') {
+                    cabecalho.querySelectorAll('th.col-oculta').forEach(th => {
+                        th.insertAdjacentHTML('beforeend', '<span class="tag-oculta">oculta na impressão</span>');
+                    });
+                }
+            }
+        }
+
+        // Blocos Utilização de Diárias / Contingência
+        [[BLOCO_UTIL, '.tabela-resumo.diarias'], [BLOCO_CONT, '.tabela-resumo.contingencia']].forEach(([chave, seletor]) => {
+            if (!ocultasSet.has(chave)) return;
+            ev.querySelectorAll(seletor).forEach(bloco => {
+                if (modo === 'remover') { bloco.remove(); return; }
+                bloco.classList.add('bloco-oculto');
+                const titulo = bloco.querySelector('th.table-title-header');
+                if (titulo) titulo.insertAdjacentHTML('beforeend', '<span class="tag-oculta">oculta na impressão</span>');
+            });
+        });
+        if (modo === 'remover') {
+            ev.querySelectorAll('.resumo-par-orcamento').forEach(par => { if (!par.children.length) par.remove(); });
+            ev.querySelectorAll('.relatorio-resumo-container').forEach(c => { if (!c.children.length) c.remove(); });
+        }
+    });
+}
+
+function montarDocumentoRelatorio(corpo, paraTela = false) {
+    const extraTela = paraTela ? 'body{min-width:1500px;padding:12px;box-sizing:border-box}' : '';
+    return `<!doctype html><html><head><meta charset="utf-8"><style>${estilosRelatorio()}${extraTela}</style></head><body>${corpo}</body></html>`;
+}
+
+async function carregarPreferenciaColunas(tipo) {
+    try {
+        const resp = await fetchComToken(`/relatorios/preferencias?tipo=${encodeURIComponent(tipo)}`);
+        return Array.isArray(resp?.ocultas) ? resp.ocultas : [];
+    } catch (e) {
+        console.warn('Não foi possível ler as colunas ocultas salvas:', e);
+        return [];
+    }
+}
+
+async function salvarPreferenciaColunas(tipo, ocultas) {
+    try {
+        await fetchComToken('/relatorios/preferencias', { method: 'PUT', body: { tipo, ocultas } });
+    } catch (e) {
+        console.warn('Não foi possível salvar as colunas ocultas:', e);
+    }
+}
+
+function renderizarPreviaRelatorio() {
+    if (!relatorioAtual || !relatorioAtual.html) return;
+    const raiz = document.createElement('div');
+    raiz.innerHTML = relatorioAtual.html;
+    aplicarColunasOcultas(raiz, ocultasAtuais, previaImpressao ? 'remover' : 'marcar');
+
+    const iframe = document.getElementById('previewRelatorio');
+    const ajustarAltura = () => {
+        try {
+            const doc = iframe.contentDocument;
+            if (!doc || !doc.documentElement || !doc.body) return;
+            // Cabe na largura da tela: se o conteúdo passar da janela do iframe, reduz o zoom da prévia
+            // na proporção (a impressão não é afetada — ela usa o documento do #printIframe).
+            doc.body.style.zoom = '';
+            const largura = doc.documentElement.scrollWidth;
+            const visivel = iframe.clientWidth;
+            if (visivel > 0 && largura > visivel + 1) doc.body.style.zoom = String(Math.max(0.4, visivel / largura).toFixed(3));
+            iframe.style.height = `${doc.documentElement.scrollHeight + 24}px`;
+        } catch (e) { /* mesmo origin; só por segurança */ }
+    };
+    iframe.onload = () => { ajustarAltura(); setTimeout(ajustarAltura, 400); };
+    if (window.relPreviaResizeListener) window.removeEventListener('resize', window.relPreviaResizeListener);
+    window.relPreviaResizeListener = () => ajustarAltura();
+    window.addEventListener('resize', window.relPreviaResizeListener);
+    iframe.style.display = 'block';
+    iframe.srcdoc = montarDocumentoRelatorio(raiz.innerHTML, true);
+}
+
+function desenharControlesColunas() {
+    const caixa = document.getElementById('colunasBox');
+    const lista = document.getElementById('listaColunas');
+    if (!caixa || !lista || !relatorioAtual) return;
+
+    const raiz = document.createElement('div');
+    raiz.innerHTML = relatorioAtual.html;
+    const nomes = nomesDasColunas(raiz);
+    const temUtil = !!raiz.querySelector('.tabela-resumo.diarias');
+    const temCont = !!raiz.querySelector('.tabela-resumo.contingencia');
+    const esc = (s) => String(s).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+
+    const item = (chave, rotulo, extra = '') => {
+        const off = ocultasAtuais.includes(chave);
+        return `<label class="${off ? 'off' : ''} ${extra}"><input type="checkbox" data-chave="${esc(chave)}" ${off ? '' : 'checked'}> ${extra ? 'Bloco: ' : ''}${esc(rotulo)}</label>`;
+    };
+    lista.innerHTML = nomes.map(n => item(n, n)).join('')
+        + (temUtil ? item(BLOCO_UTIL, 'Utilização de Diárias', 'bloco') : '')
+        + (temCont ? item(BLOCO_CONT, 'Contingência', 'bloco') : '');
+
+    lista.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+        cb.addEventListener('change', () => {
+            const chave = cb.dataset.chave;
+            ocultasAtuais = ocultasAtuais.filter(c => c !== chave);
+            if (!cb.checked) ocultasAtuais.push(chave);
+            salvarPreferenciaColunas(relatorioAtual.tipo, ocultasAtuais);
+            cb.closest('label').classList.toggle('off', !cb.checked);
+            renderizarPreviaRelatorio();
+        });
+    });
+    caixa.style.display = '';
+}
+
+async function mostrarRelatorioNaTela() {
+    if (!relatorioAtual) return;
+    ocultasAtuais = await carregarPreferenciaColunas(relatorioAtual.tipo);
+    previaImpressao = false;
+    document.getElementById('btnPreviaImpressao')?.setAttribute('aria-pressed', 'false');
+    desenharControlesColunas();
+    renderizarPreviaRelatorio();
+    document.getElementById('reportOutput').innerHTML = '';
+    document.getElementById('printButton').style.display = '';
+    document.getElementById('xlsButton').style.display = '';
+    marcarRelatorioPronto(true);
+    expandirTelaRelatorios(true);
+    document.getElementById('previewRelatorio').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// Imprimir: o que sai no papel é o relatório SEM as colunas/blocos desmarcados.
+function imprimirRelatorioAtual() {
+    if (estaNaTelaDeEmpreiteiras()) { imprimirEmpreiteirasAtual(); return; }
+    if (!relatorioAtual || !relatorioAtual.html) return;
+    const raiz = document.createElement('div');
+    raiz.innerHTML = relatorioAtual.html;
+    aplicarColunasOcultas(raiz, ocultasAtuais, 'remover');
+    imprimirRelatorio(raiz.innerHTML);
+}
+
+// Excel: um arquivo por evento, como sempre, mas sem as colunas desmarcadas (e sem as abas dos
+// blocos desmarcados). O JSON do backend usa alguns nomes diferentes do cabeçalho — mapeados aqui.
+const ALIAS_COLUNAS_XLS = {
+    'QTD AJUDA': ['QTD_AJUDA'],
+    'QTD CACHÊ': ['QTD', 'QTD_CALCULADA'],
+    'QTD': ['QTD_CALCULADA'],
+    'STATUS COMPROVANTE': ['COMP STATUS'],
+    'VLR CAIXINHA': ['VLR CAIXINHA PENDENTE'],
+    'PIX': ['PIX EMPREITEIRA']
+};
+
+function exportarExcelAtual() {
+    if (!relatorioAtual || !relatorioAtual.dadosAgrupadosPorEvento) return;
+    const ocultas = new Set(ocultasAtuais);
+    const chavesOcultas = new Set();
+    ocultas.forEach(c => { chavesOcultas.add(c); (ALIAS_COLUNAS_XLS[c] || []).forEach(a => chavesOcultas.add(a)); });
+
+    const filtrado = {};
+    Object.entries(relatorioAtual.dadosAgrupadosPorEvento).forEach(([id, ev]) => {
+        filtrado[id] = {
+            ...ev,
+            fechamentoCache: (ev.fechamentoCache || []).map(linha => {
+                const copia = { ...linha };
+                chavesOcultas.forEach(k => delete copia[k]);
+                return copia;
+            }),
+            utilizacaoDiarias: ocultas.has(BLOCO_UTIL) ? [] : ev.utilizacaoDiarias,
+            contingencia: ocultas.has(BLOCO_CONT) ? [] : ev.contingencia
+        };
+    });
+
+    const nomes = exportarParaXls(filtrado, relatorioAtual.nomeRelatorio);
+    Swal.fire({
+        icon: 'success',
+        title: 'Relatórios XLS Gerados!',
+        html: `Os arquivos foram gerados com sucesso e estão na sua pasta de <strong>DOWNLOADS</strong>.<br><br>
+               Arquivos gerados: <ul><li>${nomes.join('</li><li>')}</li></ul>`,
+        confirmButtonText: 'Entendido'
+    });
+}
+
+// Evento com mais de um cliente: o nome do cliente no topo do relatório é um só, então sem escolher
+// um cliente as linhas de clientes diferentes saíam todas sob o nome de um deles. Pergunta antes de
+// gerar: escolher um cliente ou imprimir todos (aí o topo lista os nomes de todos).
+async function resolverClientesDoEvento(eventoSelecionado, clienteId) {
+    if (clienteId) return { ok: true, clienteId };
+    const eventos = (todosOsDadosDoPeriodo || []).filter(ev =>
+        !eventoSelecionado || eventoSelecionado === 'todos' || String(ev.idevento) === String(eventoSelecionado));
+    const comVarios = eventos.filter(ev => (ev.clientes || []).length > 1);
+    if (!comVarios.length) return { ok: true, clienteId };
+
+    const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+    const opcoes = {};
+    comVarios.forEach(ev => ev.clientes.forEach(c => { opcoes[c.idcliente] = c.nomeCliente; }));
+    const lista = comVarios.map(ev => `<li><strong>${esc(ev.nmevento)}</strong>: ${ev.clientes.map(c => esc(c.nomeCliente)).join(', ')}</li>`).join('');
+
+    const resposta = await Swal.fire({
+        icon: 'question',
+        title: comVarios.length === 1 ? 'Evento com mais de um cliente' : 'Eventos com mais de um cliente',
+        html: `<ul style="text-align:left;margin:0 0 10px 18px;">${lista}</ul>Escolha um cliente ou imprima todos (o topo do relatório lista os nomes de todos os clientes).`,
+        input: 'select',
+        inputOptions: opcoes,
+        inputPlaceholder: 'Escolha um cliente',
+        showCancelButton: true,
+        showDenyButton: true,
+        confirmButtonText: 'Gerar do cliente escolhido',
+        denyButtonText: 'Imprimir todos',
+        cancelButtonText: 'Cancelar',
+        inputValidator: (valor) => (!valor ? 'Escolha um cliente ou use "Imprimir todos".' : undefined)
+    });
+    if (resposta.isConfirmed && resposta.value) {
+        const select = document.getElementById('clientSelect');
+        if (select && ![...select.options].some(o => o.value === String(resposta.value))) {
+            const opt = document.createElement('option');
+            opt.value = resposta.value;
+            opt.textContent = opcoes[resposta.value];
+            select.appendChild(opt);
+        }
+        if (select) select.value = String(resposta.value);
+        return { ok: true, clienteId: String(resposta.value) };
+    }
+    if (resposta.isDenied) return { ok: true, clienteId: '' };
+    return { ok: false };
+}
+
+
+// ---- Painel embutido sob a pílula (sem overlay) ----
+function posicionarTelaRelatorios() {
+    const modal = document.getElementById('Relatorios');
+    const painel = document.getElementById('painelDetalhes');
+    const pilulas = painel?.querySelector('.menu-pills');
+    if (!modal || !painel || !pilulas) return false;
+    const rp = painel.getBoundingClientRect();
+    const rl = pilulas.getBoundingClientRect();
+    modal.style.setProperty('--rel-top', `${Math.round(rl.bottom + 12)}px`);
+    const cabecalho = document.querySelector('header');
+    if (cabecalho) modal.style.setProperty('--rel-top-cheia', `${Math.round(cabecalho.getBoundingClientRect().bottom) + 8}px`);
+    modal.style.setProperty('--rel-left', `${Math.round(rl.left)}px`);
+    modal.style.setProperty('--rel-right', `${Math.round(window.innerWidth - rp.right + 12)}px`);
+    return true;
+}
+
+// Fecha a tela embutida sem recarregar a página (o fecharModal padrão recarrega, o que não faz
+// sentido para um relatório só de leitura). As pílulas continuam no painel.
+function sairDaTelaRelatorios() {
+    desinicializarRelatoriosModal();
+    const container = document.getElementById('modal-container');
+    if (container) container.innerHTML = '';
+    const overlay = document.getElementById('modal-overlay');
+    if (overlay) overlay.style.display = 'none';
+    document.body.classList.remove('modal-open');
+    document.querySelectorAll('.menu-pill.ativo').forEach(p => p.classList.remove('ativo'));
+    window.moduloAtual = null;
+}
+
+function expandirTelaRelatorios(expandir) {
+    const modal = document.getElementById('Relatorios');
+    if (!modal || !modal.classList.contains('rel-embutida')) return;
+    if (expandir) posicionarTelaRelatorios();
+    modal.classList.toggle('rel-cheia', !!expandir);
+    modal.scrollTop = 0;
+}
+
+function marcarRelatorioPronto(pronto) {
+    document.getElementById('Relatorios')?.classList.toggle('rel-tem-relatorio', !!pronto);
+}
+
+function configurarTelaEmbutida() {
+    const modal = document.getElementById('Relatorios');
+    if (!modal) return;
+    if (!posicionarTelaRelatorios()) {
+        // Aberto sem as pílulas na tela (atalhos de Fornecedores/Vencimentos): tela cheia com overlay.
+        modal.classList.remove('rel-embutida');
+        return;
+    }
+    // Sem overlay a página continua clicável: tira o travamento do modal (dropdowns do menu etc.).
+    document.body.classList.remove('modal-open');
+
+    // "Fechar" sem recarregar a página — a não ser que alguém espere voltar para outra tela.
+    window.relFecharCapturaListener = (e) => {
+        if (!e.target.closest('.close')) return;
+        if (typeof window.retornoAposFecharModal === 'function' || typeof window.onStaffModalClosed === 'function') return;
+        e.stopPropagation();
+        sairDaTelaRelatorios();
+    };
+    modal.addEventListener('click', window.relFecharCapturaListener, true);
+
+    // Clicar em outro item do menu (RH, CEO, T.I., Cadastros...) fecha o relatório.
+    window.relMenuCliqueListener = (e) => {
+        if (e.target.closest('#menu-horizontal a')) sairDaTelaRelatorios();
+    };
+    document.addEventListener('click', window.relMenuCliqueListener, true);
+
+    // "Fechar" da linha de ações (o do cabeçalho fica escondido nesta tela).
+    document.getElementById('btnFecharAcao')?.addEventListener('click', () => {
+        if (typeof window.retornoAposFecharModal === 'function' || typeof window.onStaffModalClosed === 'function') {
+            modal.querySelector('.rel-topo .close')?.click();   // deixa o fecharModal padrão voltar à tela de origem
+        } else {
+            sairDaTelaRelatorios();
+        }
+    });
+
+    document.getElementById('btnExpandir')?.addEventListener('click', () => expandirTelaRelatorios(true));
+    document.getElementById('btnRecolher')?.addEventListener('click', () => expandirTelaRelatorios(false));
+
+    window.relResizeListener = () => posicionarTelaRelatorios();
+    window.addEventListener('resize', window.relResizeListener);
+}
 
 function desinicializarRelatoriosModal() {
     console.log("🧹 Desinicializando módulo Relatórios...");
@@ -2144,6 +2702,14 @@ function desinicializarRelatoriosModal() {
         closeButton.removeEventListener('click', window.closeButtonClickListener);
         window.closeButtonClickListener = null;
     }
+
+    relatorioAtual = null;
+    ocultasAtuais = [];
+    previaImpressao = false;
+    window._relatorioEmpreiteiras = null;
+    if (window.relMenuCliqueListener) { document.removeEventListener('click', window.relMenuCliqueListener, true); window.relMenuCliqueListener = null; }
+    if (window.relResizeListener) { window.removeEventListener('resize', window.relResizeListener); window.relResizeListener = null; }
+    if (window.relPreviaResizeListener) { window.removeEventListener('resize', window.relPreviaResizeListener); window.relPreviaResizeListener = null; }
 
     console.log("✅ Relatórios desinicializado.");
 }

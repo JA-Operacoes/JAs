@@ -287,7 +287,7 @@ h1 {
   }
 
 
- button {
+ #Relatorios:not(.rel-tela) button {
     font-family: "Abel", sans-serif;
     font-weight: var(--font-weight);
     font-size: 20px;
@@ -302,7 +302,7 @@ h1 {
     transition: 5%;
   }
 
-button:hover {
+#Relatorios:not(.rel-tela) button:hover {
     background-color: var(--hover-color);
     color: var(--font-color);
     transform: scale(1.05);
@@ -680,3 +680,134 @@ fieldset{
 .rel-emp-aberto { background: var(--status-info-bg); color: var(--status-info-fg); }
 .rel-emp-vazio { color: var(--text-3); }
 .rel-emp a { color: var(--status-ok-fg); font-weight: bold; }
+
+/* =====================================================================================
+   TELA CHEIA DO FECHAMENTO DE STAFF (pílula do menu Relatórios) — mesmo desenho do RH/CEO/T.I:
+   barra de filtros em pílulas + relatório na própria tela. Tudo escopado em .rel-tela para não
+   mexer nos outros modais que reaproveitam estas classes (.modal-content, h1, .report-table...).
+   ===================================================================================== */
+#Relatorios.rel-tela {
+    top: 0; left: 0; transform: none;
+    width: 100%; max-width: none; height: 100%; max-height: none;
+    padding: 0; border-radius: 0; box-shadow: none;
+    overflow-y: auto; overflow-x: hidden;
+    background-color: var(--surface-2);
+}
+#Relatorios.rel-tela .modal-content {
+    align-items: stretch; gap: 12px; padding: 16px 24px 40px; box-sizing: border-box;
+    color: var(--text-1); font-family: var(--Font-primary);
+}
+.rel-tela .rel-topo { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.rel-tela .rel-topo h2 { margin: 0; font-size: 22px; font-weight: 700; color: var(--text-1); }
+.rel-tela .rel-topo small { color: var(--text-3); font-size: 13px; }
+.rel-tela .Close { display: flex; justify-content: flex-end; }
+.rel-tela .Close .close {
+    height: 34px; padding: 0 16px; border-radius: 20px; font-size: 13px; font-weight: 700; cursor: pointer;
+    border: 1px solid var(--border-2); background: transparent; color: var(--text-2);
+}
+.rel-tela .Close .close:hover { background: var(--surface-3); }
+
+.rel-tela .rel-barra, .rel-tela .rel-colunas {
+    background: var(--surface-1); border: 1px solid var(--border-1); border-radius: 8px;
+    padding: 10px 14px; display: flex; flex-direction: column; gap: 10px;
+}
+.rel-tela .rel-linha { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; }
+.rel-tela .rel-linha-acoes { justify-content: space-between; }
+.rel-tela .rel-rot { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--text-3); margin-left: 4px; }
+.rel-tela .rel-chips { display: inline-flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+/* Radios/checkboxes do filtro viram pílulas: o input fica escondido e o <span> vira o botão. */
+.rel-tela .rel-chip { position: relative; display: inline-flex; cursor: pointer; }
+.rel-tela .rel-chip input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; }
+.rel-tela .rel-chip span {
+    display: inline-flex; align-items: center; height: 34px; padding: 0 14px; font-size: 13px;
+    border: 1px solid var(--border-2); border-radius: 20px; background: transparent; color: var(--text-2);
+}
+.rel-tela .rel-chip-pq span { height: 30px; font-size: 12px; padding: 0 12px; }
+.rel-tela .rel-chip input:checked + span { background: var(--primary-color); border-color: var(--primary-color); color: var(--font-color); }
+.rel-tela .rel-chip input:focus-visible + span { outline: 2px solid var(--primary-texto); outline-offset: 2px; }
+
+.rel-tela .rel-campo, .rel-tela select.rel-campo {
+    height: 34px; border: 1px solid var(--border-1); border-radius: 20px; background: var(--surface-2);
+    padding: 0 12px; font-size: 13px; color: var(--text-1); font-family: var(--Font-primary); width: auto; min-width: 0;
+}
+.rel-tela .Eventos, .rel-tela .Clientes, .rel-tela .Equipes, .rel-tela .filtrosEmpreiteira { display: inline-flex; }
+.rel-tela .rel-campo option { color: var(--text-1); background: var(--surface-1); }
+
+.rel-tela .rel-btn {
+    height: 34px; padding: 0 16px; border-radius: 20px; font-size: 13px; font-weight: 700; cursor: pointer;
+    border: 1px solid var(--border-2); background: transparent; color: var(--text-2); display: inline-flex; align-items: center; gap: 6px;
+}
+.rel-tela .rel-btn:hover { background: var(--surface-3); }
+.rel-tela .rel-btn-prim { background: var(--primary-color); border-color: var(--primary-color); color: var(--font-color); }
+.rel-tela .rel-btn-prim:hover { background: var(--primary-color); filter: brightness(1.08); }
+.rel-tela .rel-btn:disabled { opacity: .5; cursor: default; }
+.rel-tela .rel-btn:focus-visible, .rel-tela .rel-chip-btn:focus-visible, .rel-tela .rel-link:focus-visible { outline: 2px solid var(--primary-texto); outline-offset: 2px; }
+
+.rel-tela .rel-colunas-topo { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+.rel-tela .rel-colunas-topo strong { font-size: 13px; text-transform: uppercase; letter-spacing: .5px; color: var(--text-2); }
+.rel-tela .rel-colunas-topo small { color: var(--text-3); font-size: 12px; margin-right: 8px; }
+.rel-tela .rel-colunas-lista { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.rel-tela .rel-colunas-lista label { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; color: var(--text-1); }
+.rel-tela .rel-colunas-lista label.off { color: var(--text-3); text-decoration: line-through; }
+.rel-tela .rel-colunas-lista label.bloco { border-left: 1px solid var(--border-2); padding-left: 12px; }
+.rel-tela .rel-link { background: none; border: 0; color: var(--primary-texto); cursor: pointer; font-size: 13px; text-decoration: underline; padding: 0 6px; }
+.rel-tela .rel-chip-btn {
+    height: 30px; padding: 0 12px; font-size: 12px; border: 1px solid var(--border-2); border-radius: 20px;
+    background: transparent; color: var(--text-2); cursor: pointer;
+}
+.rel-tela .rel-chip-btn[aria-pressed="true"] { background: var(--primary-color); border-color: var(--primary-color); color: var(--font-color); }
+
+.rel-tela .rel-aviso {
+    background: var(--status-alerta-bg); color: var(--status-alerta-fg); padding: 8px 14px; border-radius: 8px; font-size: 13px;
+}
+.rel-tela .rel-preview { width: 100%; border: 1px solid var(--border-2); border-radius: 6px; background: #fff; min-height: 200px; }
+#Relatorios.rel-tela #reportOutput { width: 100%; max-width: none; margin: 0; background: transparent; }
+@media (prefers-reduced-motion: reduce) { .rel-tela * { transition: none !important; } }
+
+/* Este arquivo tem um `button { width: 25%; font-size: 20px; display: flex; ... }` e um `.Close`
+   de 300x10px pensados para o modal antigo; dentro da tela cheia os botões voltam ao tamanho do texto. */
+.rel-tela button { width: auto; font-size: 13px; white-space: nowrap; transition: none; margin: 0; }
+.rel-tela button:hover { transform: none; }
+.rel-tela .Close { height: auto; width: auto; }
+.rel-tela button.close { margin: 0; }
+.rel-tela .rel-link { display: inline; background: none; padding: 0 6px; color: var(--primary-texto); }
+.rel-tela .rel-link:hover { background: none; text-decoration: none; }
+
+/* Embutida: o painel fica logo ABAIXO da pílula "Relatório de Fechamento" (no painelDetalhes), com o
+   menu e as pílulas visíveis e sem escurecer a página. Relatorios.js mede o painel e preenche
+   --rel-top/--rel-left/--rel-right. Sem pílulas na tela (aberto por Fornecedores/Vencimentos) a
+   classe é removida e vale a tela cheia com overlay. */
+#Relatorios.rel-tela.rel-embutida {
+    top: var(--rel-top, 150px); left: var(--rel-left, 12px); right: var(--rel-right, 12px); bottom: 12px;
+    width: auto; height: auto; z-index: 900; border-radius: 8px; border: 1px solid var(--border-1);
+}
+body:has(#Relatorios.rel-embutida) #modal-overlay { display: none !important; }
+
+/* Embutida: sem a "caixa" em volta — o #Relatorios/.modal-content existem só porque o carregador de
+   módulos (Index.js: abrirModal) exige .modal e .modal-content; visualmente ficam invisíveis e os
+   filtros aparecem direto abaixo da pílula. O título e a empresa já estão na própria pílula/menu. */
+#Relatorios.rel-tela.rel-embutida { background: transparent; border: 0; box-shadow: none; border-radius: 0; }
+.rel-embutida .modal-content { padding: 0 0 24px; }
+.rel-embutida .rel-topo { display: none; }
+#Relatorios:not(.rel-embutida) .rel-fechar-acao { display: none; }
+
+/* Ao gerar o relatório o painel se expande para a área abaixo do menu (que continua visível), como o
+   RH; "Recolher" volta para os filtros logo abaixo da pílula. */
+#Relatorios.rel-tela.rel-embutida.rel-cheia {
+    top: var(--rel-top-cheia, 138px); left: 0; right: 0; bottom: 0; z-index: 900;
+    background: var(--surface-2); border-radius: 0; border: 0;
+}
+.rel-cheia .modal-content { padding: 16px 24px 40px; }
+.rel-cheia .rel-topo { display: flex; }
+.rel-cheia .rel-fechar-acao { display: none; }
+#btnRecolher, #btnExpandir { display: none; }
+.rel-cheia #btnRecolher { display: inline-flex; margin-right: 8px; }
+#Relatorios.rel-embutida.rel-tem-relatorio:not(.rel-cheia) #btnExpandir { display: inline-flex; }
+
+/* "Fechar" herdava `button.close { display:flex }` sem alinhamento vertical (texto no topo); agora
+   usa o mesmo alinhamento do "Recolher". */
+.rel-tela .Close { gap: 8px; align-items: center; }
+.rel-tela .Close .close, .rel-tela .Close .rel-btn {
+    display: inline-flex; align-items: center; justify-content: center; line-height: 1; height: 34px; margin: 0;
+}
