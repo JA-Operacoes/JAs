@@ -266,10 +266,13 @@ router.get("/planos-saude", verificarPermissao('Funcionarios', 'pesquisar'), asy
 router.get("/planos-saude/:nome/tipos", verificarPermissao('Funcionarios', 'pesquisar'), async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT idtipoplanosaude, nometipo
-         FROM tipoplanosaude
-        WHERE idempresa = $1 AND lower(nomeplano) = lower($2) AND ativo = true
-        ORDER BY lower(nometipo)`,
+      `SELECT t.idtipoplanosaude, t.nometipo,
+              COALESCE((SELECT json_agg(json_build_object('de', f.de, 'ate', f.ate, 'valor', f.valor)
+                                        ORDER BY f.de NULLS FIRST)
+                          FROM faixasplanosaude f WHERE f.idtipoplanosaude = t.idtipoplanosaude), '[]'::json) AS faixas
+         FROM tipoplanosaude t
+        WHERE t.idempresa = $1 AND lower(t.nomeplano) = lower($2) AND t.ativo = true
+        ORDER BY lower(t.nometipo)`,
       [req.idempresa, req.params.nome]
     );
     res.json(rows);

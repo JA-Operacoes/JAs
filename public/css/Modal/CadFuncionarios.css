@@ -942,3 +942,40 @@ input#cep{
   }
   
   
+/* Resumo do plano de saúde no cadastro: faixas do tipo escolhido + desconto estimado do funcionário */
+.plano-saude-resumo {
+  box-sizing: border-box;
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px 14px;
+  border: 1px solid var(--border-1);
+  border-radius: 8px;
+  background: var(--surface-3);
+  color: var(--text-1);
+  font-size: 13px;
+}
+.plano-saude-resumo small { color: var(--text-2); }
+.plano-saude-resumo .plano-saude-tab { width: 100%; margin: 6px 0 10px; border-collapse: collapse; }
+.plano-saude-resumo .plano-saude-tab td,
+.plano-saude-resumo .plano-saude-tab th { padding: 4px 8px; border-bottom: 1px solid var(--border-1); text-align: left; }
+
+/* Check "No plano de saúde" de cada dependente. Fica num <label> dentro de .form-2colunas, e a regra
+   ".form-2colunas label" (rótulo flutuante dos campos) aplica position:absolute + pointer-events:none —
+   o que deixava o check sem clique. Aqui volta a ser um label comum, clicável. */
+.form-2colunas label.dep-plano-box {
+  position: static;
+  transform: none;
+  pointer-events: auto;
+  left: auto;
+  cursor: pointer;
+  align-self: center;
+  margin-left: 12px;
+  font-size: 14px;
+}
+.form-2colunas label.dep-plano-box input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  cursor: pointer;
+  accent-color: var(--primary-color);
+}
