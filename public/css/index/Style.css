@@ -20,7 +20,10 @@
     position: fixed;
     top: 0;
     left: 0;
-    z-index: 1001;
+    /* Mesmo z-index do .interface (nenhum -- ele não declara z-index em nenhum tema)
+       -- com 1001 essa barra ficava acima do overlay/modal (#modal-overlay: 999,
+       #modal-container: 1000), que antes dela existir sempre renderizava por cima
+       de tudo. Sem essa propriedade aqui, volta a empilhar do jeito padrão de antes. */
     border-bottom: 1px solid rgba(255,255,255,0.15);
   }
   .barra-empresas .rotulo{
@@ -544,13 +547,20 @@ input#search-aside {
   padding: 20px;
 
   }
+  /* Altura acompanha quantos itens o usuário realmente vê no dropdown (Index.js
+     já esconde cada link sem permissão antes disso) -- era um height:300px fixo
+     pra todo mundo, então quem só tinha 1-2 itens visíveis via a mesma caixa
+     cinza enorme de quem tem a lista inteira. max-height + scroll preserva a
+     mesma rede de segurança de antes pra quem tem muitos itens (ex: Cadastro). */
   .Cadastro:hover .drop,
   .Orcamento:hover .drop,
   .Relatorios:hover .drop,
   .Financeiro:hover .drop,
   .Usuarios:hover .drop,
   .Devs:hover .drop{
-    height: 300px;
+    height: auto;
+    max-height: 70vh;
+    overflow-y: auto;
   }
 
   /* Piloto "menu em pílulas" (Index.js: configurarMenuPilulas): DEVS não abre mais o

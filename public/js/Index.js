@@ -287,6 +287,24 @@ window.temPermissao = function (modulo, acao) {
     });
   });
 
+  // Esconde o item PAI do menu (ex: "Financeiro", "Relatórios") quando nenhum dos
+  // links dentro do dropdown sobreviveu ao filtro de permissão acima -- sem isso o
+  // usuário vê um menu com título mas dropdown vazio. Precisa rodar DEPOIS do forEach
+  // acima (que é quem decide o display de cada .abrir-modal) -- já existia um bloco
+  // fazendo isso só pro Financeiro, só que fora deste handler (no nível do módulo),
+  // rodando ANTES das permissões chegarem e dos botões serem escondidos -- então
+  // `subMenusVisiveis` sempre via tudo visível e o item pai nunca escondia de
+  // verdade, não importa a permissão do usuário.
+  const ocultarMenuPaiSemFilhosVisiveis = (seletorLi) => {
+    const li = document.querySelector(seletorLi);
+    if (!li) return;
+    const temFilhoVisivel = Array.from(li.querySelectorAll(".abrir-modal"))
+      .some((botao) => botao.style.display !== "none");
+    li.style.display = temFilhoVisivel ? "" : "none";
+  };
+  ocultarMenuPaiSemFilhosVisiveis(".Financeiro");
+  ocultarMenuPaiSemFilhosVisiveis(".Relatorios");
+
   // PÍLULAS: piloto do padrão "clicar no item do menu -> mostrar os links do submenu
   // como pílulas dentro do painelDetalhes" em vez do dropdown por hover. Começa só em
   // DEVS (1 item só, fácil de validar); se aprovado, o mesmo configurarMenuPilulas()
@@ -361,21 +379,6 @@ window.temPermissao = function (modulo, acao) {
 
   configurarMenuPilulas("li.Devs", "DEVS");
 });
-
-// Seleciona o elemento pai (o <li> que tem a classe Financeiro)
-  const menuFinanceiro = document.querySelector(".Financeiro");
-  
-  if (menuFinanceiro) {
-    // Verifica se dentro dele existe algum link (abrir-modal) que NÃO está com display 'none'
-    const subMenusVisiveis = Array.from(menuFinanceiro.querySelectorAll(".abrir-modal"))
-                                  .filter(botao => botao.style.display !== "none");
-
-    if (subMenusVisiveis.length > 0) {
-      menuFinanceiro.style.display = "block"; // Mostra o menu pai se houver filhos ativos
-    } else {
-      menuFinanceiro.style.display = "none";  // Esconde o menu pai se todos os filhos sumiram
-    }
-  }
 
 async function atualizarPermissoes() {
   try {
