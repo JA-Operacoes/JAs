@@ -397,6 +397,38 @@ async function planoSaudeFuncionario(idempresa, idfuncionario, mes, ano) {
   return calcularPlanoSaude(f, faixas, ref);
 }
 
+// ===== Empréstimo consignado descontado em folha (emprestimosfolha / emprestimosfolhaparcelas) =====
+// Item do holerite "Empréstimo (n/N)": gerado AUTOMATICAMENTE da parcela da competência (como o
+// plano de saúde). Valor, nº da parcela e "sem desconto neste mês" são editados na parcela (bloco
+// "Empréstimos" do holerite), não na linha de desconto — a linha é recalculada a cada leitura de
+// rascunho. A contabilidade é quem controla juros/quitação; aqui só replicamos o que ela manda.
+const ehItemEmprestimo = (descricao) => /^Empréstimo(\s|$)/.test(String(descricao || ""));
+
+// Parcelas do funcionário no mês de VENCIMENTO (mes/ano), só de empréstimos ativos da empresa.
+async function emprestimosDoMes(idempresa, idfuncionario, mes, ano) {
+  const { rows } = await pool.query(
+    `SELECT p.idparcela, p.idemprestimo, p.numparcela, p.valor, p.semdesconto, e.descricao, e.qtdparcelas
+       FROM emprestimosfolhaparcelas p
+       JOIN emprestimosfolha e ON e.idemprestimo = p.idemprestimo
+      WHERE p.idempresa = $1 AND p.idfuncionario = $2 AND p.mes = $3 AND p.ano = $4 AND e.ativo = true
+      ORDER BY p.idemprestimo`,
+    [idempresa, idfuncionario, mes, ano]
+  );
+  return rows.map((r) => ({
+    idparcela: r.idparcela, idemprestimo: r.idemprestimo, nome: r.descricao,
+    numparcela: r.numparcela, totalparcelas: r.qtdparcelas,
+    valor: Number(r.valor) || 0, semdesconto: r.semdesconto,
+    descricaoItem: `Empréstimo (${r.numparcela}/${r.qtdparcelas})`,
+  }));
+}
+
+// Itens de desconto do holerite a partir das parcelas (parcela sem desconto ou zerada não gera linha).
+function itensEmprestimo(lista) {
+  return (lista || [])
+    .filter((x) => !x.semdesconto && x.valor > 0)
+    .map((x) => ({ tipo: "D", descricao: x.descricaoItem, valor: round2(x.valor) }));
+}
+
 // Anos completos de serviço entre admissão e desligamento (p/ aviso prévio proporcional).
 function anosCompletosEntre(adm, fim) {
   let anos = fim.getFullYear() - adm.getFullYear();
@@ -1011,8 +1043,12 @@ router.get("/holerite", async (req, res) => {
       planoSaude = calcularPlanoSaude(funcionario, faixas, ref);
     }
 
+    // Empréstimos consignados da competência (parcelas editáveis no bloco do holerite).
+    const emprestimosLista = tipo === "mensal" ? await emprestimosDoMes(idempresa, idfuncionario, mes, ano) : [];
+
     // Dados do cadastro do funcionário interligados ao holerite (cabeçalho do empregado).
     const dadosFunc = {
+      emprestimos: emprestimosLista,
       funcao: funcionario.funcao, cbo: funcionario.cbo,
       admissao: funcionario.admissao, dependentes: funcionario.dependentes,
       valealimDia, valetrnspDia, diasUteis, planoSaude,
@@ -1032,7 +1068,7 @@ router.get("/holerite", async (req, res) => {
       // 13º: mesmo preset que garantirHolerite13 vai persistir quando a data chegar (parcela
       // pelo mês: 11=1ª, 12=2ª), incluindo INSS/IRRF da 2ª parcela — pra quem abre a aba
       // manualmente no RH antes da geração automática já ver o valor certo, não um provisório.
-      let itensRascunho = [];
+      let itensRascunho = tipo === "mensal" ? itensEmprestimo(emprestimosLista) : [];
       if (tipo === "13") {
         const s = salariobase;
         if (mes === 11) {
@@ -1097,8 +1133,11 @@ router.get("/holerite", async (req, res) => {
       const proventosManuais = itens
         .filter((i) => i.tipo === "P" && !DESCRICOES_AUTOMATICAS.has(i.descricao))
         .reduce((s, i) => s + (Number(i.valor) || 0), 0);
-      const automaticos = montarItensDoZero({ ...funcionario, planoSaudeTotal: planoSaude.total }, paramsComp, diasUteis, proventosManuais, ajusteFerias.diasFerias);
-      const pendentes = new Map(automaticos.map((i) => [i.descricao, i]));
+      const automaticos = montarItensDoZero({ ...funcionario, planoSaudeTotal: planoSaude.total, emprestimosItens: itensEmprestimo(emprestimosLista) }, paramsComp, diasUteis, proventosManuais, ajusteFerias.diasFerias);
+      // Empréstimo: sai tudo que estava gravado e entra o atual das parcelas (a linha de desconto
+      // não é editável — o valor/nº da parcela se edita no bloco "Empréstimos").
+      for (let k = itens.length - 1; k >= 0; k--) if (ehItemEmprestimo(itens[k].descricao)) itens.splice(k, 1);
+      const pendentes = new Map(automaticos.filter((i) => !ehItemEmprestimo(i.descricao)).map((i) => [i.descricao, i]));
       // Plano de saúde gravado antes de a adesão ser desmarcada (ou sem faixa pra idade): sai.
       if (!pendentes.has(PLANO_SAUDE_DESC)) {
         for (let k = itens.length - 1; k >= 0; k--) if (itens[k].descricao === PLANO_SAUDE_DESC) itens.splice(k, 1);
@@ -1117,6 +1156,7 @@ router.get("/holerite", async (req, res) => {
       // Item automático que nem existia no holerite gravado (ex.: pré-gerado antes de o
       // funcionário ter VA/VT cadastrado) entra agora, senão a tela some com a linha.
       pendentes.forEach((auto) => itens.push({ iditem: null, ...auto }));
+      automaticos.filter((i) => ehItemEmprestimo(i.descricao)).forEach((auto) => itens.push({ iditem: null, ...auto }));
     }
 
     res.json({
@@ -1124,6 +1164,7 @@ router.get("/holerite", async (req, res) => {
         idholerite: h.idholerite, idfuncionario, nome: funcionario.nome,
         mes: h.mes, ano: h.ano, tipo: h.tipo || "mensal", salariobase,
         ...dadosFunc,
+        conferido: conferidoDeFato(h),
         status: h.status, dtpagamento: h.dtpagamento, obs: h.obs, comprovante: h.comprovante || null,
         imagemcontabil: h.imagemcontabil || null,
         itens, ...calcularTotais(salariobase, itens, h.tipo),
@@ -1333,7 +1374,8 @@ router.put("/holerite/:id/conferir", async (req, res) => {
             [idholerite]
           )).rows;
           const planoConf = await planoSaudeFuncionario(idempresa, linha.idfuncionario, linha.mes, linha.ano);
-          const itensNovos = mesclarItensAutomaticos(gravados, { ...func, planoSaudeTotal: planoConf.total }, params, diasUteis, ajuste.diasFerias);
+          const empConf = itensEmprestimo(await emprestimosDoMes(idempresa, linha.idfuncionario, linha.mes, linha.ano));
+          const itensNovos = mesclarItensAutomaticos(gravados, { ...func, planoSaudeTotal: planoConf.total, emprestimosItens: empConf }, params, diasUteis, ajuste.diasFerias);
           await pool.query(`UPDATE folhaholerite SET salariobase = $1 WHERE idholerite = $2`, [salariobase, idholerite]);
           await pool.query(`DELETE FROM folhaitens WHERE idholerite = $1`, [idholerite]);
           for (const i of itensNovos) {
@@ -1463,6 +1505,185 @@ router.get("/dias-beneficio/historico", async (req, res) => {
     res.json({ historico: rows });
   } catch (error) {
     console.error("ERRO RH GET /dias-beneficio/historico:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ===== Empréstimos consignados em folha =====
+// Soma n meses a (mes, ano): { mes, ano }.
+function somarMeses(mes, ano, n) {
+  const total = ano * 12 + (mes - 1) + n;
+  return { mes: (total % 12) + 1, ano: Math.floor(total / 12) };
+}
+
+// GET /rh/emprestimos[?todos=1] — empréstimos da empresa (ativos por padrão), com quantas parcelas
+// já caíram em holerite CONFERIDO.
+router.get("/emprestimos", async (req, res) => {
+  try {
+    const idempresa = req.idempresa;
+    if (!idempresa) return res.status(400).json({ error: "idempresa obrigatório." });
+    const { rows } = await pool.query(
+      `SELECT e.idemprestimo, e.idfuncionario, f.nome, e.descricao, e.valorparcela, e.qtdparcelas,
+              e.mesinicio, e.anoinicio, e.obs, e.ativo, e.criadoem,
+              (SELECT COUNT(*)::int FROM emprestimosfolhaparcelas p
+                 JOIN folhaholerite h ON h.idempresa = p.idempresa AND h.idfuncionario = p.idfuncionario
+                  AND h.mes = p.mes AND h.ano = p.ano AND COALESCE(h.tipo,'mensal') = 'mensal'
+                  AND h.conferido AND h.conferido_em IS NOT NULL
+                WHERE p.idemprestimo = e.idemprestimo AND NOT p.semdesconto AND p.valor > 0) AS conferidas
+         FROM emprestimosfolha e JOIN funcionarios f ON f.idfuncionario = e.idfuncionario
+        WHERE e.idempresa = $1 AND ($2::boolean OR e.ativo)
+        ORDER BY e.ativo DESC, f.nome, e.idemprestimo`,
+      [idempresa, req.query.todos === "1"]
+    );
+    res.json({ emprestimos: rows });
+  } catch (error) {
+    console.error("ERRO RH GET /emprestimos:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /rh/emprestimos — cria o empréstimo e TODAS as parcelas (uma por competência).
+// Body: { idfuncionario, descricao?, valorparcela, qtdparcelas, mestrabalhado, anotrabalhado, obs? }.
+// O RH informa o mês TRABALHADO em que a contabilidade começa a descontar; o vencimento (mês em
+// que a folha é paga e que a tela de RH seleciona) é o mês seguinte. mesinicio/anoinicio guardam
+// o VENCIMENTO da 1ª parcela, mesma convenção de folhaholerite.
+router.post("/emprestimos", async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const idempresa = req.idempresa;
+    const idusuario = req.usuario?.idusuario || null;
+    const idfuncionario = parseInt(req.body.idfuncionario, 10);
+    const valor = round2(req.body.valorparcela);
+    const qtd = parseInt(req.body.qtdparcelas, 10);
+    const mesT = parseInt(req.body.mestrabalhado, 10);
+    const anoT = parseInt(req.body.anotrabalhado, 10);
+    const descricao = String(req.body.descricao || "").trim() || "Empréstimo consignado";
+    const obs = String(req.body.obs || "").trim() || null;
+    if (!idempresa) return res.status(400).json({ error: "idempresa obrigatório." });
+    if (!idfuncionario) return res.status(400).json({ error: "Selecione o funcionário." });
+    if (!(valor > 0)) return res.status(400).json({ error: "Informe o valor mensal a descontar." });
+    if (!Number.isInteger(qtd) || qtd < 1 || qtd > 120) return res.status(400).json({ error: "Quantidade de parcelas inválida (1 a 120)." });
+    if (!(mesT >= 1 && mesT <= 12) || !anoT) return res.status(400).json({ error: "Informe o mês trabalhado inicial." });
+
+    // Só funcionário com vínculo ATIVO na empresa que está cadastrando (multiempresa).
+    const vinc = await client.query(
+      `SELECT 1 FROM funcionarioempresas WHERE idfuncionario = $1 AND idempresa = $2 AND COALESCE(ativo, true) = true`,
+      [idfuncionario, idempresa]
+    );
+    if (!vinc.rowCount) return res.status(400).json({ error: "Funcionário sem vínculo ativo nesta empresa." });
+
+    const ini = somarMeses(mesT, anoT, 1);
+    await client.query("BEGIN");
+    const { rows } = await client.query(
+      `INSERT INTO emprestimosfolha (idempresa, idfuncionario, descricao, valorparcela, qtdparcelas, mesinicio, anoinicio, obs, idusuario)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING idemprestimo`,
+      [idempresa, idfuncionario, descricao, valor, qtd, ini.mes, ini.ano, obs, idusuario]
+    );
+    const idemprestimo = rows[0].idemprestimo;
+    for (let k = 0; k < qtd; k++) {
+      const c = somarMeses(ini.mes, ini.ano, k);
+      await client.query(
+        `INSERT INTO emprestimosfolhaparcelas (idemprestimo, idempresa, idfuncionario, mes, ano, numparcela, valor, idusuario)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [idemprestimo, idempresa, idfuncionario, c.mes, c.ano, k + 1, valor, idusuario]
+      );
+    }
+    await client.query("COMMIT");
+    res.json({ ok: true, idemprestimo });
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => {});
+    console.error("ERRO RH POST /emprestimos:", error);
+    res.status(500).json({ error: error.message });
+  } finally {
+    client.release();
+  }
+});
+
+// GET /rh/emprestimos/:id — contrato + parcelas (com status do holerite da competência).
+router.get("/emprestimos/:id", async (req, res) => {
+  try {
+    const idempresa = req.idempresa;
+    const id = parseInt(req.params.id, 10);
+    if (!idempresa || !id) return res.status(400).json({ error: "Parâmetros inválidos." });
+    const emp = (await pool.query(
+      `SELECT e.*, f.nome FROM emprestimosfolha e JOIN funcionarios f ON f.idfuncionario = e.idfuncionario
+        WHERE e.idemprestimo = $1 AND e.idempresa = $2`,
+      [id, idempresa]
+    )).rows[0];
+    if (!emp) return res.status(404).json({ error: "Empréstimo não encontrado nesta empresa." });
+    const parcelas = (await pool.query(
+      `SELECT p.idparcela, p.mes, p.ano, p.numparcela, p.valor, p.semdesconto,
+              h.status AS statusholerite, (h.conferido AND h.conferido_em IS NOT NULL) AS conferido
+         FROM emprestimosfolhaparcelas p
+         LEFT JOIN folhaholerite h ON h.idempresa = p.idempresa AND h.idfuncionario = p.idfuncionario
+          AND h.mes = p.mes AND h.ano = p.ano AND COALESCE(h.tipo,'mensal') = 'mensal'
+        WHERE p.idemprestimo = $1 ORDER BY p.ano, p.mes`,
+      [id]
+    )).rows;
+    res.json({ emprestimo: emp, parcelas });
+  } catch (error) {
+    console.error("ERRO RH GET /emprestimos/:id:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PUT /rh/emprestimos/:id/ativo — encerra (ativo=false) ou reativa o empréstimo. Encerrado, as
+// parcelas deixam de entrar nos holerites ainda não conferidos; os já conferidos ficam como estão.
+router.put("/emprestimos/:id/ativo", async (req, res) => {
+  try {
+    const idempresa = req.idempresa;
+    const id = parseInt(req.params.id, 10);
+    if (!idempresa || !id) return res.status(400).json({ error: "Parâmetros inválidos." });
+    const { rowCount } = await pool.query(
+      `UPDATE emprestimosfolha SET ativo = $1 WHERE idemprestimo = $2 AND idempresa = $3`,
+      [req.body.ativo !== false, id, idempresa]
+    );
+    if (!rowCount) return res.status(404).json({ error: "Empréstimo não encontrado nesta empresa." });
+    res.json({ ok: true });
+  } catch (error) {
+    console.error("ERRO RH PUT /emprestimos/:id/ativo:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PUT /rh/emprestimos/parcela/:idparcela — edita UMA competência: valor, nº da parcela e "sem
+// desconto neste mês" (ex.: mês de férias). Travado se o holerite da competência já foi conferido ou pago.
+router.put("/emprestimos/parcela/:idparcela", async (req, res) => {
+  try {
+    const idempresa = req.idempresa;
+    const idusuario = req.usuario?.idusuario || null;
+    const idparcela = parseInt(req.params.idparcela, 10);
+    if (!idempresa || !idparcela) return res.status(400).json({ error: "Parâmetros inválidos." });
+    const par = (await pool.query(
+      `SELECT p.*, e.qtdparcelas FROM emprestimosfolhaparcelas p JOIN emprestimosfolha e ON e.idemprestimo = p.idemprestimo
+        WHERE p.idparcela = $1 AND p.idempresa = $2`,
+      [idparcela, idempresa]
+    )).rows[0];
+    if (!par) return res.status(404).json({ error: "Parcela não encontrada nesta empresa." });
+
+    const h = (await pool.query(
+      `SELECT status, (conferido AND conferido_em IS NOT NULL) AS conferido FROM folhaholerite
+        WHERE idempresa = $1 AND idfuncionario = $2 AND mes = $3 AND ano = $4 AND COALESCE(tipo,'mensal') = 'mensal'`,
+      [idempresa, par.idfuncionario, par.mes, par.ano]
+    )).rows[0];
+    if (h && (h.conferido || h.status === "Pago")) {
+      return res.status(409).json({ error: "O holerite desta competência já foi conferido/pago. Desfaça a conferência para alterar a parcela." });
+    }
+
+    const semdesconto = req.body.semdesconto === true || req.body.semdesconto === "true";
+    const valor = round2(req.body.valor);
+    const num = parseInt(req.body.numparcela, 10);
+    if (!semdesconto && !(valor >= 0)) return res.status(400).json({ error: "Valor inválido." });
+    if (!Number.isInteger(num) || num < 1 || num > 999) return res.status(400).json({ error: "Número da parcela inválido." });
+
+    await pool.query(
+      `UPDATE emprestimosfolhaparcelas SET valor = $1, numparcela = $2, semdesconto = $3, idusuario = $4, atualizadoem = NOW()
+        WHERE idparcela = $5`,
+      [semdesconto ? par.valor : valor, num, semdesconto, idusuario, idparcela]
+    );
+    res.json({ ok: true });
+  } catch (error) {
+    console.error("ERRO RH PUT /emprestimos/parcela/:idparcela:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -2428,7 +2649,8 @@ async function computarLinhaFolha(idempresa, f, mes, ano, params, diasUteis) {
       const ajuste = await ajusteFeriasMensal(idempresa, f.idfuncionario, mes, ano);
       const d = await resolverDiasBeneficio(idempresa, f.idfuncionario, mes, ano, diasUteis, ajuste, head.conferido_beneficios_em);
       const plano = await planoSaudeFuncionario(idempresa, f.idfuncionario, mes, ano);
-      const itens = mesclarItensAutomaticos(gravados, { ...f, planoSaudeTotal: plano.total }, params, d.dias, ajuste.diasFerias);
+      const emprestimosItens = itensEmprestimo(await emprestimosDoMes(idempresa, f.idfuncionario, mes, ano));
+      const itens = mesclarItensAutomaticos(gravados, { ...f, planoSaudeTotal: plano.total, emprestimosItens }, params, d.dias, ajuste.diasFerias);
       const t = calcularTotais(salariobase, itens);
       return {
         diasBeneficio: d.dias, diasOrigem: d.origem, diasJustificativa: d.justificativa, diasCalendario: d.diasCalendario,
@@ -2514,6 +2736,8 @@ function montarItensDoZero(f, params, diasUteis, proventosTributaveis = 0, diasF
   // Plano de saúde (já calculado por quem chama: f.planoSaudeTotal). Desconto pós-imposto — não
   // entra na base de INSS/IRRF.
   if (Number(f.planoSaudeTotal) > 0) itens.push({ tipo: "D", descricao: PLANO_SAUDE_DESC, valor: round2(f.planoSaudeTotal) });
+  // Empréstimos consignados da competência (já em itens de desconto: f.emprestimosItens).
+  if (Array.isArray(f.emprestimosItens)) f.emprestimosItens.forEach((i) => itens.push({ ...i }));
   if (descontoFerias > 0) itens.push({ tipo: "D", descricao: FERIAS_MES_DESC, valor: descontoFerias });
   return itens;
 }
@@ -2527,7 +2751,7 @@ const DESCRICOES_AUTOMATICAS = new Set([VA_DESC, VT_DESC, "INSS", "IRRF", FERIAS
 // usavam montarItensDoZero puro — que devolve SÓ os automáticos —, então um provento/desconto
 // manual sumia da lista e era APAGADO do banco no momento da conferência.
 function mesclarItensAutomaticos(itensGravados, f, params, diasUteis, diasFerias = 0) {
-  const manuais = (itensGravados || []).filter((i) => !DESCRICOES_AUTOMATICAS.has(i.descricao));
+  const manuais = (itensGravados || []).filter((i) => !DESCRICOES_AUTOMATICAS.has(i.descricao) && !ehItemEmprestimo(i.descricao));
   const proventosManuais = manuais
     .filter((i) => i.tipo === "P")
     .reduce((s, i) => s + (Number(i.valor) || 0), 0);
@@ -2546,6 +2770,7 @@ function diasUteisSemFerias(diasUteis, ajuste) {
 async function montarItensPrevisaoMensal(idempresa, f, mes, ano, params, diasUteis) {
   const salariobase = Number(f.salario) || 0;
   const planoTotal = (await planoSaudeFuncionario(idempresa, f.idfuncionario, mes, ano)).total;
+  const emprestimosItens = itensEmprestimo(await emprestimosDoMes(idempresa, f.idfuncionario, mes, ano));
   const va = Math.round((Number(f.valealim) || 0) * diasUteis * 100) / 100;
   const vt = Math.round((Number(f.valetrnsp) || 0) * diasUteis * 100) / 100;
 
@@ -2572,7 +2797,7 @@ async function montarItensPrevisaoMensal(idempresa, f, mes, ano, params, diasUte
     const itensAnteriores = (await pool.query(
       `SELECT tipo, descricao, valor FROM folhaitens WHERE idholerite = $1`,
       [ant.idholerite]
-    )).rows.filter((i) => i.tipo !== "P" && i.descricao !== FERIAS_MES_DESC && i.descricao !== PLANO_SAUDE_DESC).map((i) => {
+    )).rows.filter((i) => i.tipo !== "P" && i.descricao !== FERIAS_MES_DESC && i.descricao !== PLANO_SAUDE_DESC && !ehItemEmprestimo(i.descricao)).map((i) => {
       if (i.tipo === "B" && i.descricao === VA_DESC) return { ...i, valor: va };
       if (i.tipo === "B" && i.descricao === VT_DESC) return { ...i, valor: vt };
       if (i.tipo === "D" && i.descricao === "INSS") return { ...i, valor: inss };
@@ -2586,11 +2811,13 @@ async function montarItensPrevisaoMensal(idempresa, f, mes, ano, params, diasUte
     if (!tem("IRRF")) itensAnteriores.push({ tipo: "D", descricao: "IRRF", valor: ir.irrf });
     // Plano de saúde: nunca copiado do mês anterior (idade/faixa/dependentes mudam) — recalculado.
     if (planoTotal > 0) itensAnteriores.push({ tipo: "D", descricao: PLANO_SAUDE_DESC, valor: round2(planoTotal) });
+    // Empréstimo: nunca copiado do mês anterior — vem da parcela da competência.
+    emprestimosItens.forEach((i) => itensAnteriores.push(i));
     return itensAnteriores;
   }
 
   // Sem histórico: monta do zero (VA/VT + INSS/IRRF sobre o salário base + plano de saúde).
-  return montarItensDoZero({ ...f, planoSaudeTotal: planoTotal }, params, diasUteis);
+  return montarItensDoZero({ ...f, planoSaudeTotal: planoTotal, emprestimosItens }, params, diasUteis);
 }
 
 // Garante que existe um holerite MENSAL real (persistido) pra competência — cria com o

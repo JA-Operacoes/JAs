@@ -287,6 +287,7 @@ function montarPainel() {
         <button type="button" id="rh-folha-imprimir-holerites" class="rh-btn-print rh-so-lista"><span class="material-symbols-outlined">print</span>Imprimir Todos Holerites</button>
         ${ehMasterRH() ? `<button type="button" id="rh-folha-imprimir-proventos" class="rh-btn-print rh-so-lista" title="Recibos dos proventos pagos à parte do holerite (bônus, prêmio, PLR) deste mês"><span class="material-symbols-outlined">payments</span>Imprimir Proventos</button>` : ""}
         <button type="button" id="rh-ferias" class="rh-btn-ghost" title="Listagem de férias a vencer e vencidas, por período"><span class="material-symbols-outlined">event_upcoming</span>Férias a Vencer/Vencidas</button>
+        <button type="button" id="rh-emprestimos" class="rh-btn-ghost" title="Empréstimos consignados descontados em folha"><span class="material-symbols-outlined">account_balance</span>Empréstimos</button>
         <button type="button" id="rh-aliquotas" class="rh-btn-ghost" title="Editar alíquotas (INSS/IRRF/FGTS)"><i class="ri-settings-5-line"></i>Alíquotas</button>
       </div>
     </div>
@@ -320,6 +321,17 @@ function montarPainel() {
       mod.abrirFeriasAVencer();
     } catch (err) {
       console.error("Erro ao abrir férias a vencer:", err);
+    }
+  });
+
+  // Empréstimos consignados em folha (cadastro + parcelas) — carregado sob demanda. Ao fechar,
+  // recarrega a lista: as parcelas entram sozinhas nos holerites da competência.
+  document.getElementById("rh-emprestimos").addEventListener("click", async () => {
+    try {
+      const mod = await import("./RHEmprestimos.js");
+      mod.abrirEmprestimos(() => carregarFolha());
+    } catch (err) {
+      console.error("Erro ao abrir empréstimos:", err);
     }
   });
 
@@ -726,6 +738,21 @@ ${h.tipo === "ferias" && !h.idholerite ? `
           </ul>
           <div class="rh-plano-total">Total descontado do funcionário: <strong>${formatarReaisInput(h.planoSaude.total)}</strong></div>
         </div>` : ""}
+        ${h.tipo === "mensal" && Array.isArray(h.emprestimos) && h.emprestimos.length ? `
+        <div class="rh-emp-bloco">
+          <strong>Empréstimos consignados neste mês</strong>
+          <small>Replique o que vem no holerite da contabilidade. A linha "Empréstimo (n/N)" dos descontos é automática e segue estes campos
+            (salve o holerite antes se tiver outras edições pendentes — alterar a parcela recarrega a tela).
+            ${h.conferido || h.status === "Pago" ? "<em>Holerite conferido/pago: parcela travada.</em>" : ""}</small>
+          ${h.emprestimos.map((e) => `
+          <div class="rh-emp-linha" data-idparcela="${e.idparcela}">
+            <span class="rh-emp-nome">${escHtml(e.nome)}</span>
+            <label>Parcela <input type="number" min="1" class="rh-emp-num" value="${e.numparcela}" ${h.conferido || h.status === "Pago" ? "disabled" : ""}> de ${e.totalparcelas}</label>
+            <label>Valor <input type="text" class="rh-emp-valor" inputmode="numeric" oninput="formatReais(this)" value="${formatarReaisInput(e.valor)}" ${h.conferido || h.status === "Pago" ? "disabled" : ""}></label>
+            <label class="rh-emp-sem-label"><input type="checkbox" class="rh-emp-sem" ${e.semdesconto ? "checked" : ""} ${h.conferido || h.status === "Pago" ? "disabled" : ""}> Sem desconto neste mês</label>
+            ${h.conferido || h.status === "Pago" ? "" : `<button type="button" class="rh-emp-salvar secundario">Salvar parcela</button>`}
+          </div>`).join("")}
+        </div>` : ""}
       </div>
 
       <div class="rh-totais">
@@ -832,6 +859,27 @@ ${h.tipo === "ferias" && !h.idholerite ? `
   });
   document.getElementById("rh-add-beneficio").addEventListener("click", () => addLinha("rh-beneficios"));
   document.getElementById("rh-add-desconto").addEventListener("click", () => addLinha("rh-descontos"));
+  // Parcela de empréstimo da competência: grava em emprestimosfolhaparcelas e recarrega o holerite
+  // (a linha de desconto é recalculada a partir dela).
+  document.querySelectorAll(".rh-emp-linha").forEach((linhaEmp) => {
+    linhaEmp.querySelector(".rh-emp-salvar")?.addEventListener("click", async () => {
+      const body = {
+        numparcela: parseInt(linhaEmp.querySelector(".rh-emp-num").value, 10),
+        valor: desformatarReais(linhaEmp.querySelector(".rh-emp-valor").value),
+        semdesconto: linhaEmp.querySelector(".rh-emp-sem").checked,
+      };
+      try {
+        await fetchComToken(`/rh/emprestimos/parcela/${linhaEmp.dataset.idparcela}`, { method: "PUT", body });
+        await carregarHolerite(h.idfuncionario);
+        carregarFolha();
+      } catch (err) {
+        const m = String(err?.message || "").match(/\{.*\}/);
+        let texto = "Não foi possível salvar a parcela.";
+        try { if (m) texto = JSON.parse(m[0]).error || texto; } catch (_) {}
+        Swal.fire({ icon: "error", title: "Erro", text: texto });
+      }
+    });
+  });
   const btnCalc = document.getElementById("rh-calcular");
   if (btnCalc) btnCalc.addEventListener("click", calcularEncargos);
   const btnResc = document.getElementById("rh-calc-rescisao");
