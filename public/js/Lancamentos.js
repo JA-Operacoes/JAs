@@ -341,6 +341,7 @@ async function verificaLancamento() {
             ativo: document.querySelector("#ativo").checked,
             locado: locado,
             qtdParcelas: qtdParcelas,
+            parcelaInicial: parseInt(document.querySelector("#parcelaInicial")?.value, 10) || 1,
             dtRecebimento: dtRecebimento,
             observacao: observacao,
             tipoVinculo: tipoVinculo,
@@ -453,7 +454,15 @@ function gerenciarCampos() {
         qtdeInput.disabled = !isParcelado || isIndeterminado;
         qtdeInput.style.backgroundColor = qtdeInput.disabled ? "#e9ecef" : "#ffffff";
         campoTermino.disabled = isIndeterminado;
-        
+
+        // Parcela inicial só faz sentido em parcelado (mesma regra da quantidade).
+        const parcelaIniInput = document.querySelector("#parcelaInicial");
+        if (parcelaIniInput) {
+            parcelaIniInput.disabled = qtdeInput.disabled;
+            parcelaIniInput.style.backgroundColor = parcelaIniInput.disabled ? "#e9ecef" : "#ffffff";
+            if (parcelaIniInput.disabled) parcelaIniInput.value = 1;
+        }
+
         if (isIndeterminado) {
             qtdeInput.value = "";
             campoTermino.value = "";
@@ -491,6 +500,13 @@ function gerenciarCampos() {
         validarFormulario();
     });
 
+    // Mudar a parcela inicial muda quantas parcelas FALTAM — recalcula término e prévia.
+    document.querySelector("#parcelaInicial")?.addEventListener("input", () => {
+        calcularDataTerminoPorParcelas();
+        renderizarPrevia();
+        validarFormulario();
+    });
+
     atualizarEstado();
 }
 
@@ -503,7 +519,10 @@ function calcularDataTerminoPorParcelas() {
 
     if (vcto && qtd > 0) {
         let dataFim = new Date(vcto + 'T00:00:00');
-        const multiplicador = qtd - 1;
+        // Qtde é o TOTAL do contrato; o Vencimento Base é o da parcela inicial (ex.: 100 de 300),
+        // então faltam qtd - inicial períodos até a última parcela.
+        const parcelaIni = parseInt(document.querySelector("#parcelaInicial")?.value, 10) || 1;
+        const multiplicador = Math.max(0, qtd - parcelaIni);
 
         // Garante que o switch ignore diferenças de maiúsculas/minúsculas
         const p = periodicidade.charAt(0).toUpperCase() + periodicidade.slice(1).toLowerCase();
@@ -550,7 +569,10 @@ function calcularParcelasPelaDataTermino() {
             case "Anual":     qtd = (d2.getFullYear() - d1.getFullYear()) + 1; break;
         }
 
-        qtdeInput.value = qtd > 0 ? qtd : 1;
+        // `qtd` aqui é quantas parcelas CABEM até o término; a Qtde do formulário é o total do
+        // contrato, então soma as (parcela inicial - 1) que já passaram.
+        const parcelaIni = parseInt(document.querySelector("#parcelaInicial")?.value, 10) || 1;
+        qtdeInput.value = (qtd > 0 ? qtd : 1) + parcelaIni - 1;
     }
 }
 
@@ -627,9 +649,11 @@ function calcularPreviaParcelas(dados) {
     }
 
     // Trava de segurança pra evitar loops infinitos (máximo 120 parcelas)
+    // Parcela inicial (financiamento já andando, ex.: 100 de 300): a 1ª linha da prévia já é a 100.
+    const parcelaIni = String(dados.tipoRepeticao || '').toUpperCase() === 'PARCELADO' ? (parseInt(dados.parcelainicial, 10) || 1) : 1;
     return gerarDatasRecorrentes(dados.vctobase, dados.periodicidade, (d, n) => d <= limite && n <= 120)
         .map(({ numero, data }) => ({
-            numero,
+            numero: numero + parcelaIni - 1,
             vencimento: data.toLocaleDateString('pt-BR'),
             valor: dados.vlrestimado,
             dataObjeto: data // Útil para filtros posteriores
@@ -892,6 +916,7 @@ function renderizarPrevia() {
         dttermino: document.querySelector("#dtTermino").value,
         indeterminado: document.querySelector("#indeterminado").checked,
         qtdparcelas: parseInt(document.querySelector("#qtdeParcelas")?.value) || 0,
+        parcelainicial: parseInt(document.querySelector("#parcelaInicial")?.value, 10) || 1,
         tipoRepeticao: document.querySelector("#tipoRepeticao").value,
         observacao: document.querySelector("#observacao").value
     };
@@ -918,6 +943,11 @@ function renderizarPrevia() {
     // Ativa o container
     containerPrevia.style.display = "block";
 
+    // "n/total": com parcela inicial (100 de 300) o total é o do contrato, não quantas linhas a prévia tem.
+    const totalPrevia = (String(dados.tipoRepeticao || '').toUpperCase() === 'PARCELADO' && dados.qtdparcelas > 0)
+        ? dados.qtdparcelas
+        : todasParcelas.length;
+
     // Lógica de divisão em 2 colunas
     const metade = Math.ceil(parcelasExibicao.length / 2);
     const col1 = parcelasExibicao.slice(0, metade);
@@ -932,8 +962,8 @@ function renderizarPrevia() {
                     : `Cronograma Previsto (${todasParcelas.length} parcelas)`}
             </h6>
             <div class="previa-grades">
-                <div class="previa-coluna">${gerarTabelaHTML(col1, todasParcelas.length, dados.indeterminado)}</div>
-                <div class="previa-coluna">${gerarTabelaHTML(col2, todasParcelas.length, dados.indeterminado)}</div>
+                <div class="previa-coluna">${gerarTabelaHTML(col1, totalPrevia, dados.indeterminado)}</div>
+                <div class="previa-coluna">${gerarTabelaHTML(col2, totalPrevia, dados.indeterminado)}</div>
             </div>
         </div>
     `;
@@ -995,6 +1025,7 @@ async function preencherCampos(lancamento) {
                  ? lancamento.qtdeparcelas 
                  : "";
     setCampo("#qtdeParcelas", qtde);
+    setCampo("#parcelaInicial", lancamento.parcelainicial || 1);
 
     // Data de Término
     if (lancamento.dttermino) {
@@ -1246,6 +1277,10 @@ function coletarErrosLancamento() {
     if (tipoRepeticao === "PARCELADO") {
         if (!indeterminado && !dtTermino && (!qtdeParcelas || qtdeParcelas <= 0)) {
             erros.push("Qtde de Parcelas ou Data de Término");
+        }
+        const parcelaIniForm = parseInt(document.querySelector("#parcelaInicial")?.value, 10) || 1;
+        if (parseInt(qtdeParcelas, 10) > 0 && parcelaIniForm > parseInt(qtdeParcelas, 10)) {
+            erros.push("Parcela Inicial não pode ser maior que a Qtde de Parcelas (total)");
         }
     }
 
@@ -1534,7 +1569,10 @@ function vgExpandirOcorrencias(listaBruta, periodoVencimento) {
         const ehParcelado = base.tiporepeticao === 'PARCELADO';
         if (!ehFixo && !ehParcelado) return; // sem repetição conhecida: só a parcela real (se houver) entra
 
-        const maxN = ehFixo ? Infinity : (parseInt(base.qtdeparcelas, 10) || 1);
+        // Parcela em que o lançamento começa (financiamento já andando: 100 de 300). n = 1 é a
+        // parcela "inicial"; faltam qtde - inicial + 1 ocorrências.
+        const parcelaIni = ehParcelado ? (parseInt(base.parcelainicial, 10) || 1) : 1;
+        const maxN = ehFixo ? Infinity : (ehParcelado ? Math.max(1, (parseInt(base.qtdeparcelas, 10) || 1) - parcelaIni + 1) : 1);
         const termino = base.dttermino ? dataCalendario(base.dttermino) : null;
 
         gerarDatasRecorrentes(base.vctobase, base.periodicidade, (d, n) => {
@@ -1547,7 +1585,7 @@ function vgExpandirOcorrencias(listaBruta, periodoVencimento) {
             linhasFinais.push({
                 ...vgCamposComuns(base),
                 dtvcto: data.toISOString(), dtpgto: null,
-                numparcela: numero, totalparcelas: ehParcelado ? base.qtdeparcelas : null,
+                numparcela: numero + parcelaIni - 1, totalparcelas: ehParcelado ? base.qtdeparcelas : null,
                 valor: parseFloat(base.vlrestimado) || 0, vlrpago: 0,
                 status: 'previsto', origem: 'projetado',
             });

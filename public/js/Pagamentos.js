@@ -79,6 +79,7 @@ export async function carregarLancamentosParaPagto() {
             opt.textContent = `${l.idlancamento} - ${l.descricao}`;
             opt.dataset.valor = l.vlrestimado;
             opt.dataset.vctobase = l.vctobase;
+            opt.dataset.parcelainicial = l.parcelainicial || 1;
             select.appendChild(opt);
         });
 
@@ -129,7 +130,7 @@ function configurarBuscaLancamento() {
     });
 }
 
-async function buscarDadosParcela(idLanc, vctoBaseOriginal) {
+async function buscarDadosParcela(idLanc, vctoBaseOriginal, parcelaInicial = 1) {
     try {
         const ultimoPagto = await fetchComToken(`/pagamentos/ultimo/${idLanc}`);
         const campoParcela = document.querySelector("#numParcela");
@@ -143,7 +144,7 @@ async function buscarDadosParcela(idLanc, vctoBaseOriginal) {
             dataUltimoVcto.setMonth(dataUltimoVcto.getMonth() + 1);
             campoVcto.value = dataUltimoVcto.toISOString().split('T')[0];
         } else {
-            campoParcela.value = 1;
+            campoParcela.value = parseInt(parcelaInicial, 10) || 1; // financiamento já andando começa na parcela inicial
             campoVcto.value = vctoBaseOriginal ? vctoBaseOriginal.split('T')[0] : "";
         }
     } catch (error) {
@@ -905,7 +906,7 @@ export function configurarEventosPagamentos() {
                 const elDesc = document.querySelector("#descLancamento");
                 if (elDesc) elDesc.value = opcaoSelecionada.text.trim();
 
-                await buscarDadosParcela(idLanc, dadosOpcao.vctobase);
+                await buscarDadosParcela(idLanc, dadosOpcao.vctobase, dadosOpcao.parcelainicial);
 
                 // Atualiza a interface (máscaras e cálculos)
                 document.querySelectorAll('#form input').forEach(i => i.dispatchEvent(new Event('input', { bubbles: true })));

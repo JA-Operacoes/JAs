@@ -4248,6 +4248,7 @@ router.get('/contas-pagar', async (req, res) => {
                 l.tiporepeticao, 
                 l.periodicidade,
                 l.qtdeparcelas,
+                l.parcelainicial,
                 l.indeterminado,
                 l.dttermino,
                 -- -------------------------------------------
@@ -4632,7 +4633,7 @@ router.post('/confirmar-pagamento-conta',
                     $1, $2,
                     (SELECT COALESCE(vlrestimado, 0) FROM lancamentos WHERE idlancamento = $1),
                     $3, $4, $5,
-                    (SELECT COALESCE(MAX(numparcela), 0) + 1 FROM pagamentos WHERE idlancamento = $1),
+                    (SELECT COALESCE(MAX(numparcela), (SELECT parcelainicial - 1 FROM lancamentos WHERE idlancamento = $1), 0) + 1 FROM pagamentos WHERE idlancamento = $1),
                     $6, $7, $8, $9, $10
                 ) RETURNING idpagamento;`;
 
@@ -4725,7 +4726,7 @@ router.post("/vencimentoconta/uploads_comprovantesconta",
             const criado = await pool.query(
                 `INSERT INTO pagamentos (idlancamento, idempresa, vlrprevisto, dtvcto, status, numparcela)
                  VALUES ($1, $2, (SELECT COALESCE(vlrestimado, 0) FROM lancamentos WHERE idlancamento = $1), $3, 'pendente',
-                    (SELECT COALESCE(MAX(numparcela), 0) + 1 FROM pagamentos WHERE idlancamento = $1))
+                    (SELECT COALESCE(MAX(numparcela), (SELECT parcelainicial - 1 FROM lancamentos WHERE idlancamento = $1), 0) + 1 FROM pagamentos WHERE idlancamento = $1))
                  RETURNING idpagamento;`,
                 [idlancamento, idempresa, dtvcto]
             );

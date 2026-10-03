@@ -318,6 +318,7 @@
                                     <option value="MENSAL">Mensal</option>
                                     <option value="UNICO">Único</option>
                                     <option value="SEMANAL">Semanal</option>
+                                    <option value="QUINZENAL">Quinzenal</option>
                                     <option value="BIMESTRAL">Bimestral</option>
                                     <option value="TRIMESTRAL">Trimestral</option>
                                     <option value="SEMESTRAL">Semestral</option>
@@ -332,7 +333,7 @@
                                 </select>
                             </div>
                             <div class="form2">
-                                <label class="user-label" for="qtdeParcelas">Qtde Parcelas</label>
+                                <label class="user-label" for="qtdeParcelas">Qtde Parcelas (total)</label>
                                 <input type="text" class="input" name="qtdeParcelas" id="qtdeParcelas">
                             </div>
                             <div class="form-checkbox">
@@ -352,6 +353,13 @@
                             <div class="form2" id="containerTermino">
                                 <label class="user-label" for="dtTermino">Data de Término</label>
                                 <input type="date" class="input" name="dtTermino" id="dtTermino">
+                            </div>
+                            <!-- Financiamento/consórcio que já está andando (ex.: parcela 100 de 300): o Vencimento Base
+                                 é o da parcela inicial e a Qtde Parcelas é o TOTAL do contrato. Padrão 1 = começa na 1ª. -->
+                            <div class="form2" id="containerParcelaInicial">
+                                <label class="user-label" for="parcelaInicial">Parcela Inicial</label>
+                                <input type="number" min="1" step="1" class="input" name="parcelaInicial" id="parcelaInicial" value="1"
+                                       title="Número da parcela que vence no Vencimento Base (ex.: 100 de 300). Deixe 1 se o contrato está começando.">
                             </div>
                         </div>
                     </div>

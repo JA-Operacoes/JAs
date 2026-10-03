@@ -1018,7 +1018,10 @@ function expandirOcorrenciasLancamentoAno(l, ano) {
   if (isNaN(vctoBase.getTime())) return [];
   const ehFixo = l.tiporepeticao === "FIXO" || l.indeterminado === true;
   const ehParcelado = l.tiporepeticao === "PARCELADO";
-  const maxLoop = ehParcelado ? (parseInt(l.qtdeparcelas, 10) || 1) : (ehFixo ? 12 : 1);
+  // PARCELADO que já está andando (ex.: parcela 100 de 300): faltam qtde - inicial + 1 ocorrências.
+  const maxLoop = ehParcelado
+    ? Math.max(1, (parseInt(l.qtdeparcelas, 10) || 1) - (parseInt(l.parcelainicial, 10) || 1) + 1)
+    : (ehFixo ? 12 : 1);
   const dttermino = l.dttermino ? new Date(l.dttermino) : null;
   const dia = vctoBase.getDate();
   const ocorrencias = [];
@@ -1075,7 +1078,7 @@ router.get("/geral/pagar", async (req, res) => {
     if (temFiltro) { paramsLancs.push(idempresas); filtroLancEmpresa = `AND l.idempresa = ANY($${paramsLancs.length}::int[])`; }
 
     const lancs = (await pool.query(
-      `SELECT l.idlancamento, l.idempresa, l.tiporepeticao, l.qtdeparcelas, l.indeterminado, l.dttermino, l.vctobase, l.vlrestimado
+      `SELECT l.idlancamento, l.idempresa, l.tiporepeticao, l.qtdeparcelas, l.parcelainicial, l.indeterminado, l.dttermino, l.vctobase, l.vlrestimado
          FROM lancamentos l
          LEFT JOIN funcionarioempresas fe
            ON lower(trim(l.tipovinculo)) = 'funcionario' AND fe.idfuncionario = l.idvinculo AND fe.idempresa = l.idempresa
@@ -1291,7 +1294,7 @@ router.get("/geral/pagar-detalhe", async (req, res) => {
 
     // ===== Fornecedores / Clientes / Outros (sem vínculo) / Funcionário-freelancer sem holerite =====
     const lancs = (await pool.query(
-      `SELECT l.idlancamento, l.descricao, l.tiporepeticao, l.qtdeparcelas, l.indeterminado,
+      `SELECT l.idlancamento, l.descricao, l.tiporepeticao, l.qtdeparcelas, l.parcelainicial, l.indeterminado,
               l.dttermino, l.vctobase, l.vlrestimado, l.tipovinculo,
               fe.perfil,
               COALESCE(func.nome, forn.nmfantasia, cli.nmfantasia) AS nome_vinculo

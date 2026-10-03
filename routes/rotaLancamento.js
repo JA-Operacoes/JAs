@@ -263,7 +263,7 @@ router.get("/visao-geral", verificarPermissao('Lancamentos', 'pesquisar'), async
                 l.idlancamento, l.descricao, l.idplanocontas, l.idcentrocusto,
                 l.idempresapagadora, l.tipovinculo, l.idvinculo,
                 CAST(l.vlrestimado AS FLOAT) AS vlrestimado,
-                l.vctobase, l.periodicidade, l.tiporepeticao, l.qtdeparcelas,
+                l.vctobase, l.periodicidade, l.tiporepeticao, l.qtdeparcelas, l.parcelainicial,
                 l.indeterminado, l.dttermino,
                 pc.nmplanocontas, pc.codigo AS planocontas_codigo,
                 cc.nmcentrocusto,
@@ -360,8 +360,14 @@ router.put("/:id",
             descricao, vlrEstimado,
             vctoBase, periodicidade, tipoRepeticao,
             dtTermino, indeterminado, ativo, locado,
-            qtdParcelas, dtRecebimento, observacao
+            qtdParcelas, dtRecebimento, observacao, parcelaInicial
         } = req.body;
+
+        // Parcela em que o lançamento começa (financiamento já andando: ex. 100 de 300). Padrão 1.
+        const parcelaInicialFinal = Math.max(1, parseInt(parcelaInicial, 10) || 1);
+        if (String(tipoRepeticao || '').toUpperCase() === 'PARCELADO' && parseInt(qtdParcelas, 10) > 0 && parcelaInicialFinal > parseInt(qtdParcelas, 10)) {
+            return res.status(400).json({ message: "A parcela inicial não pode ser maior que a quantidade total de parcelas." });
+        }
 
         try {
             const result = await pool.query(
@@ -371,7 +377,7 @@ router.put("/:id",
                     dttermino = $6, indeterminado = $7, ativo = $8, locado = $9,
                     qtdeparcelas = $10, dtrecebimento = $11, observacao = $12,
                     idcentrocusto = $13, idplanocontas = $14, idempresapagadora = $15,
-                    idvinculo = $16, tipovinculo = $17
+                    idvinculo = $16, tipovinculo = $17, parcelainicial = $20
                 WHERE idlancamento = $18 AND idempresa = $19
                 RETURNING *`,
                 [
@@ -393,7 +399,8 @@ router.put("/:id",
                     idVinculo || null,       // $16
                     tipoVinculo || null,     // $17
                     id,                      // $18
-                    idempresa                // $19
+                    idempresa,               // $19
+                    parcelaInicialFinal      // $20
                 ]
             );
 
@@ -426,8 +433,14 @@ router.post("/",
             descricao, vlrEstimado,
             vctoBase, periodicidade, tipoRepeticao,
             dtTermino, indeterminado, ativo, locado,
-            qtdParcelas, dtRecebimento, observacao
+            qtdParcelas, dtRecebimento, observacao, parcelaInicial
         } = req.body;
+
+        // Parcela em que o lançamento começa (financiamento já andando: ex. 100 de 300). Padrão 1.
+        const parcelaInicialFinal = Math.max(1, parseInt(parcelaInicial, 10) || 1);
+        if (String(tipoRepeticao || '').toUpperCase() === 'PARCELADO' && parseInt(qtdParcelas, 10) > 0 && parcelaInicialFinal > parseInt(qtdParcelas, 10)) {
+            return res.status(400).json({ message: "A parcela inicial não pode ser maior que a quantidade total de parcelas." });
+        }
 
         const client = await pool.connect();
 
@@ -440,8 +453,8 @@ router.post("/",
                     idvinculo, tipovinculo, descricao,
                     vlrestimado, vctobase, periodicidade, tiporepeticao,
                     dttermino, indeterminado, ativo, locado,
-                    qtdeparcelas, dtrecebimento, observacao
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+                    qtdeparcelas, dtrecebimento, observacao, parcelainicial
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
                 RETURNING idlancamento`,
                 [
                     idempresa,           // $1
@@ -461,7 +474,8 @@ router.post("/",
                     locado,              // $15
                     qtdParcelas || null, // $16
                     dtRecebimento || null, // $17
-                    observacao || null   // $18
+                    observacao || null,  // $18
+                    parcelaInicialFinal  // $19
                 ]
             );
 
@@ -487,6 +501,7 @@ router.post("/",
                 ativo,
                 locado,
                 qtdeparcelas: qtdParcelas || null,
+                parcelainicial: parcelaInicialFinal,
                 dtrecebimento: dtRecebimento || null,
                 observacao: observacao || null
             };

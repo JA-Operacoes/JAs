@@ -3911,6 +3911,42 @@ input#search-aside {
   #rh-panel .rh-plano-detalhe { margin-top: 10px; padding: 8px 12px; background: var(--surface-3); border: 1px solid var(--border-1); border-radius: 8px; font-size: 12px; color: var(--text-2); }
   #rh-panel .rh-plano-detalhe > strong { display: block; margin-bottom: 4px; color: var(--text-2); text-transform: uppercase; letter-spacing: .3px; font-size: 11px; }
   #rh-panel .rh-plano-detalhe ul { margin: 0; padding-left: 18px; }
+  /* Empréstimos consignados em folha (RHEmprestimos.js): popup de lista/cadastro/parcelas. */
+  .rhe-popup { background: var(--surface-1); color: var(--text-1); }
+  .rhe-popup .rhe-topo { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 10px; text-align: left; }
+  .rhe-popup .rhe-topo small, .rhe-popup small { color: var(--text-2); }
+  .rhe-popup .rhe-check { display: flex; align-items: center; gap: 6px; font-size: 13px; white-space: nowrap; }
+  .rhe-popup .rhe-scroll { max-height: 50vh; overflow: auto; margin-bottom: 8px; }
+  .rhe-popup .rhe-tab { width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; }
+  .rhe-popup .rhe-tab th { background: var(--surface-3); color: var(--text-2); font-size: 12px; text-transform: uppercase; letter-spacing: .3px; padding: 8px; }
+  .rhe-popup .rhe-tab td { padding: 8px; border-bottom: 1px solid var(--border-1); vertical-align: middle; }
+  .rhe-popup .rhe-num { text-align: right; white-space: nowrap; }
+  .rhe-popup .rhe-encerrado td { color: var(--text-3); }
+  .rhe-popup .rhe-vazio { color: var(--text-2); padding: 20px 0; }
+  .rhe-popup .rhe-sub { text-align: left; margin: 0 0 10px; color: var(--text-2); font-size: 13px; }
+  .rhe-popup .rhe-btn { padding: 4px 12px; border-radius: 6px; border: 1px solid var(--border-2); background: var(--surface-1); color: var(--text-1); cursor: pointer; font: inherit; font-size: 12px; }
+  .rhe-popup .rhe-badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+  .rhe-popup .rhe-badge.ativo { background: var(--status-ok-bg); color: var(--status-ok-fg); }
+  .rhe-popup .rhe-badge.encerrado { background: var(--status-erro-bg); color: var(--status-erro-fg); }
+  .rhe-popup .rhe-badge.neutro { background: var(--status-neutro-bg); color: var(--status-neutro-fg); }
+  .rhe-popup .rhe-form { display: flex; flex-direction: column; gap: 10px; text-align: left; }
+  .rhe-popup .rhe-form label { display: flex; flex-direction: column; gap: 3px; font-size: 13px; color: var(--text-2); }
+  .rhe-popup .rhe-form input, .rhe-popup .rhe-form select, .rhe-popup .rhe-form textarea {
+    height: 36px; padding: 0 10px; border: 1px solid var(--border-1); border-radius: 6px; background: var(--surface-1); color: var(--text-1); font: inherit; box-sizing: border-box; width: 100%;
+  }
+  .rhe-popup .rhe-form textarea { height: auto; padding: 8px 10px; resize: vertical; }
+  .rhe-popup .rhe-linha2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .rhe-popup .rhe-resumo { padding: 8px 10px; border-radius: 6px; background: var(--status-info-bg); color: var(--status-info-fg); font-size: 12px; min-height: 18px; }
+  .rhe-popup .rhe-resumo:empty { display: none; }
+  /* Bloco "Empréstimos" do holerite: parcela da competência editável (valor / nº / sem desconto). */
+  #rh-panel .rh-emp-bloco { margin-top: 10px; padding: 8px 12px; background: var(--surface-3); border: 1px solid var(--border-1); border-radius: 8px; font-size: 13px; color: var(--text-2); }
+  #rh-panel .rh-emp-bloco > strong { display: block; margin-bottom: 4px; text-transform: uppercase; letter-spacing: .3px; font-size: 11px; }
+  #rh-panel .rh-emp-bloco small { display: block; margin-bottom: 8px; }
+  #rh-panel .rh-emp-linha { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding: 6px 0; border-top: 1px solid var(--border-1); }
+  #rh-panel .rh-emp-nome { font-weight: 600; color: var(--text-1); min-width: 150px; }
+  #rh-panel .rh-emp-linha label { display: flex; align-items: center; gap: 6px; color: var(--text-1); }
+  #rh-panel .rh-emp-num { width: 64px; }
+  #rh-panel .rh-emp-valor { width: 120px; }
   #rh-panel .rh-plano-detalhe li { margin: 2px 0; }
   #rh-panel .rh-plano-detalhe em { color: var(--text-2); font-style: normal; }
   #rh-panel .rh-plano-total { margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--border-1); }

@@ -11336,7 +11336,10 @@ function expandirOcorrenciasNoAno(c, anoFiltro) {
 
     const ehFixo = (c.tiporepeticao === "FIXO" || c.indeterminado === true);
     const ehParcelado = (c.tiporepeticao === "PARCELADO");
-    const maxLoop = ehParcelado ? (parseInt(c.qtdeparcelas) || 1) : (ehFixo ? 12 : 1);
+    // PARCELADO que já está andando (ex.: parcela 100 de 300): faltam qtde - inicial + 1 ocorrências.
+    const maxLoop = ehParcelado
+        ? Math.max(1, (parseInt(c.qtdeparcelas) || 1) - (parseInt(c.parcelainicial) || 1) + 1)
+        : (ehFixo ? 12 : 1);
 
     // Vencimento dia 29/30/31 em mês curto: `new Date(ano, 1, 31)` estoura para 3 de março, o
     // que fazia a ocorrência de FEVEREIRO sumir da lista e março aparecer duas vezes (era um
